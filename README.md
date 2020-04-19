@@ -5,3 +5,4 @@ A pipeline to analyze high-throughput fluorescence cytometry data, flow cytometr
   * Generating similarity matrix of samples
   * Generating similarity heatmap of samples
   * Clustering of samples
+  * Interpretations of results
