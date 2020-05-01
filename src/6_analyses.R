@@ -72,14 +72,65 @@ wells_drugs = wells_drugs[order(wells_drugs$drug, wells_drugs$concentration, dec
 
 write.table(x = wells_drugs, file = paste0('../out/drugs_table','.tsv'), sep = '\t', col.names = T, quote = F, row.names = F)
 
-# STEP 5: Plotting sample graph ####
-message('Plotting sample graph')
+# STEP 5: Plotting samples graph ####
+message('Plotting samples graph')
 
-pdf('../out/sample_graph.pdf')
-plot(out_$samples_graph)
+# graph atts
+g_ = out_$samples_graph
+g_$layout = layout_nicely(graph = g_, dim = 3)
+
+V(g_)$size <- 2
+V(g_)$frame.color = NA
+rownames(wells_drugs) = wells_drugs$file
+V(g_)$label = wells_drugs[V(g_)$name, 'community']
+V(g_)$label[which(V(g_)$label %in% 0)] = NA
+V(g_)$label.cex = 2
+V(g_)$label.font = 2
+
+# edge atts
+E(g_)$width = 0.3
+E(g_)$color = adjustcolor(col = 'grey80', alpha.f = .2)
+
+pdf(file = '../out/sample_graph.pdf', width = 80, height = 80)
+plot(g_)
 graphics.off()
 
-# STEP 6: Writting cliques ####
+# STEP 6: Plotting dispersion graph ####
+message('Plotting dispersion graph')
+
+# graph atts
+g_ = out_$dispersion_graph
+g_$layout = layout_nicely(graph = g_, dim = 2)
+
+# vertex atts
+for(i_ in 1:length(V(g_)))
+{
+  v_ = V(g_)$name[i_]
+  if(v_ == 'Control') { V(g_)$label[i_] = 'Control'; next()}
+  V(g_)$label[i_] = paste0(wells_drugs[v_,"drug"],'_',wells_drugs[v_,"concentration"])
+}
+V(g_)$label.cex = 1
+V(g_)$label.font = 2
+V(g_)$label.dist = sample(x = seq(0,0.1,length.out = 4), size = length(V(g_)), replace = T)
+V(g_)$label.degree = -pi/2
+V(g_)$label.color = adjustcolor(col = 'black', alpha.f = .6)
+V(g_)$color = 'grey'
+V(g_)$size <- 0.15
+V(g_)$frame.color = NA
+
+# edge atts
+cols_ = colorRampPalette(colors = c('red', 'blue'))(length(E(g_)))
+names(cols_) = sort(E(g_)$weight)     # lower values are assigned to red shades
+E(g_)$color = cols_[as.character(E(g_)$weight)]
+E(g_)$width = 1
+E(g_)$arrow.size = 0.2
+
+# plotting
+pdf(file = '../out/dispersion_graph.pdf', width = 80, height = 80)
+plot(g_, add = F, mark.groups = which(V(g_)$name %in% 'Control'), mark.col = 'mistyrose1', mark.expand = 2, mark.border = NA, directed = F)
+graphics.off()
+
+# STEP 7: Writting cliques ####
 message('Writting cliques')
 
 clqs_ = out_$cliques
@@ -102,8 +153,8 @@ if( !is.na(wells_drugs$concentration[1]) )      # if there are drug doses
 }
 write.table(x = clqs_, file = paste0('../out/Cliques','.tsv'), sep = '\t', col.names = T, quote = F, row.names = F)
 
-# STEP 7: Dispersion plot ####
-message('Dispersion plot')
+# STEP 8: Dispersion map ####
+message('Dispersion map')
 
 # finding centroids of cliques
 
@@ -112,7 +163,7 @@ i_ = 1
 for(row_ in 0:nrow(out_$cliques))
 {
   message('\nProcessing clique #', i_)
-  
+
   if(row_ == 0)
   {
     smpls_ = controls_
@@ -139,7 +190,7 @@ rownames(centroids_) = c('Control', paste0('C',1:length(out_$cliques$Cliques)) )
 # running umap
 
 umap_ = as.data.frame(umap(X = centroids_,
-                           n_neighbors = nrow(centroids_),
+                           n_neighbors = nrow(centroids_)-1,
                            pca = ncol(centroids_)-1,n_components = ncol(centroids_)-1,
                            n_threads = 3))
 colnames(umap_) = paste0('UMAP',1:(ncol(centroids_)-1))
@@ -186,7 +237,7 @@ p_ =  ggplot(data = umap_, aes(x = UMAP1, y = UMAP2))+
 plot(p_)
 graphics.off()
 
-# STEP 8: Clique heatmap ####
+# STEP 9: Clique heatmap ####
 message('Clique heatmap')
 
 centroids_ = apply(X = centroids_, MARGIN = 2, FUN = function(chnl_){ return( (chnl_-min(chnl_))/diff(range(chnl_)) ) })      # scaling each channel to [0,1]
@@ -204,3 +255,4 @@ for(mtd_ in c('mcquitty',"average","ward.D","ward.D2","single","complete","media
            legend = T,legend_breaks = round(c(min(centroids_)+0.01,mean(centroids_),max(centroids_)-0.01),2),
            annotation_col = NA, silent = T, filename = paste0('../out/cliques_heatmap_',mtd_,'.pdf'))
 }
+
