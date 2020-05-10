@@ -9,6 +9,8 @@ args_ = commandArgs(trailingOnly = T)
 
 ######## MANUAL DEBUG ONLY ########
 # args_ = c('-chnl','SSC-H,VL1-H,BL1-H,BL3-H,BL5-H,RL1-H,VL6-H')
+# args_ = c('-chnl','BL5-H,RL1-H,VL6-H')
+args_ = c('-chnl','Nd142,Nd144,Nd148,Sm154,Eu151,Gd158,Gd160,Dy162,Dy164,Er166,Er167,Er170,Yb171,Yb174,Yb176,Lu175')
 ##################################
 
 # STEP 0: Options control ####
@@ -51,9 +53,10 @@ controls_ids = paste(controls_ids, collapse = ',')
 message('Clustering')
 
 out_ = compaRe::clustering(simMat_ = simMat,
-                            controls_ = controls_ids,
-                            thresh_ = NULL,
-                            smpl_graph = T)
+                           controls_ = controls_ids,
+                           thresh_ = NULL,
+                           smpl_graph = T,
+                           sim_graph = T)
 
 # STEP 4: Adding things to drug tables ####
 message('Adding information to drug tables')
@@ -79,55 +82,79 @@ message('Plotting samples graph')
 g_ = out_$samples_graph
 g_$layout = layout_nicely(graph = g_, dim = 3)
 
-V(g_)$size <- 2
+# vertex atts
+x_rng = range(g_$layout[,1])
+y_rng = range(g_$layout[,2])
+comms_ = unique(V(g_)$comm)
+for(comm_ in comms_)
+{
+  if(comm_ ==  0) { next() }
+  
+  inds_ = which(V(g_)$comm %in% comm_)
+  if(1 < length(inds_))
+  {
+    centroid_ = c(sample(seq(x_rng[1],x_rng[2],by = 0.1),1), sample(seq(y_rng[1],y_rng[2],by = 0.1),1))
+    anch_angs = seq(0, 2*pi, length.out = length(inds_)+1)
+    r_ = 1
+    anch_x = r_*cos(anch_angs[-1])+centroid_[1]
+    anch_y = r_*sin(anch_angs[-1])+centroid_[2]
+    g_$layout[inds_,1] = anch_x
+    g_$layout[inds_,2] = anch_y
+  }
+}
+cols_ = colorRampPalette(colors = c('red','green','blue','purple','orange','pink','yellow'))(length(comms_))
+V(g_)$color = adjustcolor(col = cols_[V(g_)$comm+1], alpha.f = .7)
+V(g_)$color[which(V(g_)$comm %in% 0)] = adjustcolor(col = 'grey', alpha.f = .4)
+V(g_)$size <- 4
 V(g_)$frame.color = NA
-rownames(wells_drugs) = wells_drugs$file
-V(g_)$label = wells_drugs[V(g_)$name, 'community']
+V(g_)$label = out_$samples_table[V(g_)$name, 'community']
 V(g_)$label[which(V(g_)$label %in% 0)] = NA
-V(g_)$label.cex = 2
+V(g_)$label.cex = 4
 V(g_)$label.font = 2
 
 # edge atts
 E(g_)$width = 0.3
-E(g_)$color = adjustcolor(col = 'grey80', alpha.f = .2)
+E(g_)$color = adjustcolor(col = 'grey', alpha.f = .3)
+E(g_)$color[E(g_)$intra_comm] = 'black'
 
-pdf(file = '../out/sample_graph.pdf', width = 80, height = 80)
+# plotting
+pdf(file = '../out/sample_graph.pdf', width = 70, height = 70)
+par(mai = c(0,0,0,0))
 plot(g_)
 graphics.off()
 
-# STEP 6: Plotting dispersion graph ####
-message('Plotting dispersion graph')
+# STEP 6: Plotting similarity graph ####
+message('Plotting similarity graph')
 
 # graph atts
-g_ = out_$dispersion_graph
+g_ = out_$similarity_graph
 g_$layout = layout_nicely(graph = g_, dim = 2)
 
 # vertex atts
-for(i_ in 1:length(V(g_)))
-{
-  v_ = V(g_)$name[i_]
-  if(v_ == 'Control') { V(g_)$label[i_] = 'Control'; next()}
-  V(g_)$label[i_] = paste0(wells_drugs[v_,"drug"],'_',wells_drugs[v_,"concentration"])
-}
-V(g_)$label.cex = 1
-V(g_)$label.font = 2
-V(g_)$label.dist = sample(x = seq(0,0.1,length.out = 4), size = length(V(g_)), replace = T)
-V(g_)$label.degree = -pi/2
-V(g_)$label.color = adjustcolor(col = 'black', alpha.f = .6)
 V(g_)$color = 'grey'
 V(g_)$size <- 0.15
 V(g_)$frame.color = NA
+V(g_)$label.cex = 1
+V(g_)$label.font = 2
+V(g_)$label.dist = 0
+V(g_)$label.degree = pi/2
+V(g_)$label.color = adjustcolor(col = 'black', alpha.f = .6)
 
 # edge atts
 cols_ = colorRampPalette(colors = c('red', 'blue'))(length(E(g_)))
 names(cols_) = sort(E(g_)$weight)     # lower values are assigned to red shades
 E(g_)$color = cols_[as.character(E(g_)$weight)]
 E(g_)$width = 1
-E(g_)$arrow.size = 0.2
+E(g_)$arrow.size = 0.3
+E(g_)$label = round(E(g_)$weight,1)
+E(g_)$label.cex = 0.7
+E(g_)$label.font = 2
+E(g_)$label.color = 'darkgreen'
 
 # plotting
-pdf(file = '../out/dispersion_graph.pdf', width = 80, height = 80)
-plot(g_, add = F, mark.groups = which(V(g_)$name %in% 'Control'), mark.col = 'mistyrose1', mark.expand = 2, mark.border = NA, directed = F)
+pdf(file = '../out/similarity_graph.pdf', width = 70, height = 70)
+par(mai = c(0, 0, 0,0))
+plot(g_, add = F, mark.groups = which(V(g_)$name %in% 'Control'), mark.col = 'lightgreen', mark.expand = 2, mark.border = NA, directed = F)
 graphics.off()
 
 # STEP 7: Writting cliques ####

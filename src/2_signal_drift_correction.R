@@ -371,13 +371,13 @@ if(HEATPLOT)
         u4_ = dt_[inds_[length(inds_)]]
       }
 
-      cols5_ = u5_ = NULL
+      cols5_ = NULL
+      u5_ = if(max(dt_) < round(max(dt_),2)) { round(max(dt_)-0.01,2) }else{ round(max(dt_),2) }
       inds_ = which(upWhisker_ < dt_)
       len_ = length(inds_)
-      if(0 <= length(inds_))
+      if(0 < length(inds_))
       {
         cols5_ = colorRampPalette(colors = c('skyblue','blue4'))(len_)
-        u5_ = dt_[inds_[length(inds_)]]
       }
 
       cols_ = c(cols1_, cols2_, cols3_, cols4_, cols5_)
@@ -391,7 +391,7 @@ if(HEATPLOT)
                     fontsize = 7,
                     border_color = 'grey90', color = cols_,
                     breaks = c(min(dt_)-col_step,dt_),     # in pheatmap color intervals (showing lower and uper bounds) are open on the left and closed on the right
-                    legend_breaks = round(c(min(dt_),0,u1_,u2_, u3_, u4_, u5_-0.01),2),
+                    legend_breaks = round(c(min(dt_),0,u1_,u2_, u3_, u4_, u5_),2),
                     annotation_col = NA, silent = T)
       plot_list[[plate_]] = p_[[4]]
     }
