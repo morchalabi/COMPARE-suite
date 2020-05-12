@@ -9,8 +9,8 @@ args_ = commandArgs(trailingOnly = T)
 
 ######## MANUAL DEBUG ONLY ########
 # args_ = c('-chnl','SSC-H,VL1-H,BL1-H,BL3-H,BL5-H,RL1-H,VL6-H')
-# args_ = c('-chnl','BL5-H,RL1-H,VL6-H')
-args_ = c('-chnl','Nd142,Nd144,Nd148,Sm154,Eu151,Gd158,Gd160,Dy162,Dy164,Er166,Er167,Er170,Yb171,Yb174,Yb176,Lu175')
+args_ = c('-chnl','BL5-H,RL1-H,VL6-H')
+# args_ = c('-chnl','Nd142,Nd144,Nd148,Sm154,Eu151,Gd158,Gd160,Dy162,Dy164,Er166,Er167,Er170,Yb171,Yb174,Yb176,Lu175')
 ##################################
 
 # STEP 0: Options control ####
@@ -83,8 +83,13 @@ g_ = out_$samples_graph
 g_$layout = layout_nicely(graph = g_, dim = 3)
 
 # vertex atts
+cntrl_rng = apply(g_$layout[which(V(g_)$comm %in% 0), ], MARGIN = 2, FUN = range)
 x_rng = range(g_$layout[,1])
+xs_ = seq(x_rng[1],x_rng[2],by = 0.1)
+xs_ = xs_[ xs_ < cntrl_rng[1,1] | cntrl_rng[2,1] < xs_ ]
 y_rng = range(g_$layout[,2])
+ys_ = seq(y_rng[1],y_rng[2],by = 0.1)
+ys_ = ys_[ ys_ < cntrl_rng[1,2] | cntrl_rng[2,2] < ys_ ]
 comms_ = unique(V(g_)$comm)
 for(comm_ in comms_)
 {
@@ -93,32 +98,37 @@ for(comm_ in comms_)
   inds_ = which(V(g_)$comm %in% comm_)
   if(1 < length(inds_))
   {
-    centroid_ = c(sample(seq(x_rng[1],x_rng[2],by = 0.1),1), sample(seq(y_rng[1],y_rng[2],by = 0.1),1))
+    centroid_ = c(sample(xs_,1), sample(ys_,1))
     anch_angs = seq(0, 2*pi, length.out = length(inds_)+1)
-    r_ = 1
+    r_ = 2
     anch_x = r_*cos(anch_angs[-1])+centroid_[1]
     anch_y = r_*sin(anch_angs[-1])+centroid_[2]
     g_$layout[inds_,1] = anch_x
     g_$layout[inds_,2] = anch_y
+  }else
+  {
+    g_$layout[inds_,1] = sample(xs_,1)
+    g_$layout[inds_,2] = sample(ys_,1)
   }
 }
 cols_ = colorRampPalette(colors = c('red','green','blue','purple','orange','pink','yellow'))(length(comms_))
 V(g_)$color = adjustcolor(col = cols_[V(g_)$comm+1], alpha.f = .7)
 V(g_)$color[which(V(g_)$comm %in% 0)] = adjustcolor(col = 'grey', alpha.f = .4)
-V(g_)$size <- 4
-V(g_)$frame.color = NA
+V(g_)$size <- 8
+V(g_)$frame.color = 'black'
 V(g_)$label = out_$samples_table[V(g_)$name, 'community']
 V(g_)$label[which(V(g_)$label %in% 0)] = NA
-V(g_)$label.cex = 4
+V(g_)$label.cex = 10
 V(g_)$label.font = 2
+V(g_)$label.color = 'black'
 
 # edge atts
 E(g_)$width = 0.3
-E(g_)$color = adjustcolor(col = 'grey', alpha.f = .3)
+E(g_)$color = adjustcolor(col = 'grey', alpha.f = .4)
 E(g_)$color[E(g_)$intra_comm] = 'black'
 
 # plotting
-pdf(file = '../out/sample_graph.pdf', width = 70, height = 70)
+pdf(file = '../out/sample_graph.pdf', width = 100, height = 100)
 par(mai = c(0,0,0,0))
 plot(g_)
 graphics.off()
@@ -131,13 +141,20 @@ g_ = out_$similarity_graph
 g_$layout = layout_nicely(graph = g_, dim = 2)
 
 # vertex atts
+if(!is.na(wells_drugs$concentration[1]))      # if there are drug doses
+{
+  rownames(wells_drugs) = wells_drugs$file
+  cntrl_ind = which(V(g_)$name == 'Control')
+  V(g_)$label = V(g_)$name
+  V(g_)$label[-cntrl_ind] = paste0(wells_drugs[V(g_)$name[-cntrl_ind],"drug"],'_',wells_drugs[V(g_)$name[-cntrl_ind],"concentration"])
+}
 V(g_)$color = 'grey'
-V(g_)$size <- 0.15
+V(g_)$size <- 0.1
 V(g_)$frame.color = NA
 V(g_)$label.cex = 1
 V(g_)$label.font = 2
-V(g_)$label.dist = 0
-V(g_)$label.degree = pi/2
+V(g_)$label.dist = 0.05
+V(g_)$label.degree = sample(c(-pi/2,pi/2), length(V(g_)),replace = T)
 V(g_)$label.color = adjustcolor(col = 'black', alpha.f = .6)
 
 # edge atts
@@ -152,9 +169,9 @@ E(g_)$label.font = 2
 E(g_)$label.color = 'darkgreen'
 
 # plotting
-pdf(file = '../out/similarity_graph.pdf', width = 70, height = 70)
+pdf(file = '../out/similarity_graph.pdf', width = 100, height = 100)
 par(mai = c(0, 0, 0,0))
-plot(g_, add = F, mark.groups = which(V(g_)$name %in% 'Control'), mark.col = 'lightgreen', mark.expand = 2, mark.border = NA, directed = F)
+plot(g_, add = F, mark.groups = which(V(g_)$name %in% 'Control'), mark.col = 'lightgreen', mark.expand = 1, mark.border = NA, directed = F)
 graphics.off()
 
 # STEP 7: Writting cliques ####
@@ -268,18 +285,19 @@ graphics.off()
 message('Clique heatmap')
 
 centroids_ = apply(X = centroids_, MARGIN = 2, FUN = function(chnl_){ return( (chnl_-min(chnl_))/diff(range(chnl_)) ) })      # scaling each channel to [0,1]
+min_ = if(round(min(dt_mat),2) < min(dt_mat)) { round(min(dt_mat)+0.01,2) }else{round(min(dt_mat),2)}
+max_ = if(max(dt_mat) < round(max(dt_mat),2)) { round(max(dt_mat)-0.01,2) }else{round(max(dt_mat),2)}
 for(mtd_ in c('mcquitty',"average","ward.D","ward.D2","single","complete","median","centroid"))
 {
   pheatmap(mat = centroids_,
-           cluster_cols = F,treeheight_col = 0,
+           cluster_cols = T,treeheight_col = 0,
            cluster_rows = T,treeheight_row = 0,
            clustering_method = mtd_,
            show_rownames = T, show_colnames = T,
            fontsize_row = 6,fontsize_col = 20,      # fontsize of row/column labels
            cellheight = 5, cellwidth = 100,         # height/width of matrix cells
-           fontsize = 15,                           # legend keys font size
+           fontsize = 20,                           # legend keys font size
            border_color = NA,
-           legend = T,legend_breaks = round(c(min(centroids_)+0.01,mean(centroids_),max(centroids_)-0.01),2),
+           legend = T,legend_breaks = round(seq(min_,max_,length.out = 3),2),
            annotation_col = NA, silent = T, filename = paste0('../out/cliques_heatmap_',mtd_,'.pdf'))
 }
-

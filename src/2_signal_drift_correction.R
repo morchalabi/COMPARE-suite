@@ -335,6 +335,8 @@ if(HEATPLOT)
 
       dt_ = sort(dt_, decreasing = F)
 
+      u0_ = if( round(min(dt_),2) < min(dt_)) { round(min(dt_)+0.01,2) }else{ round(min(dt_),2) }
+      
       cols1_ = u1_ = NULL
       inds_ = which( dt_ <= lowWhisker_)
       len_ = length(inds_)
@@ -391,7 +393,7 @@ if(HEATPLOT)
                     fontsize = 7,
                     border_color = 'grey90', color = cols_,
                     breaks = c(min(dt_)-col_step,dt_),     # in pheatmap color intervals (showing lower and uper bounds) are open on the left and closed on the right
-                    legend_breaks = round(c(min(dt_),0,u1_,u2_, u3_, u4_, u5_),2),
+                    legend_breaks = round(c(u0_,0,u1_,u2_, u3_, u4_, u5_),2),
                     annotation_col = NA, silent = T)
       plot_list[[plate_]] = p_[[4]]
     }
