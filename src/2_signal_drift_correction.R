@@ -307,83 +307,84 @@ if(HEATPLOT)
   nrow_ = floor(sqrt(numOfPlates))                          # number of rows per page
   ncol_ = ceiling(numOfPlates/floor(sqrt(numOfPlates)))     # number of columns per page
   width_ = height_ = max(nrow_, ncol_)*8.45                 # every heatmap takes up this width/height in inches
-  pdf(file = paste0('../out/plates_heatmap_correction.pdf'), width = width_, height = height_)
+  fl_ = paste0('../out/plates_heatmap_correction.pdf')
+  if(!CORRECT) { fl_ = paste0('../out/plates_heatmap_no_correction.pdf') }
+  pdf(file = fl_, width = width_, height = height_)
   for(chnl_ in chnls_)
   {
     plot_list = list()
 
     # finding max in all plates
     max_ = 0
+    dt_ = NULL
     for(plate_ in 1:numOfPlates)
     {
-      dt_mat = MFI_mats[[plate_]][[chnl_]]/1e4      # palte plate_ showing MFI of channel chnl_
-      max_tmp = max(dt_mat)
-      if(max_ < max_tmp) { max_ = max_tmp }
+      dt_ = c(dt_, as.numeric(MFI_mats[[plate_]][[chnl_]]/1e4))     # palte plate_ showing MFI of channel chnl_
     }
+    max_ = max(dt_)
+    dt_ = unique(dt_)
+    
+    IQR_ = IQR(dt_)
+    quartiles_ = quantile(dt_, probs = c(.25, .75))
+    lowWhisker_ = max(min(dt_), quartiles_[1] - IQR_*1.5)
+    upWhisker_ = min(max(dt_), quartiles_[2] + IQR_*1.5)
+    
+    dt_ = sort(dt_, decreasing = F)
+    
+    u0_ = if( round(min(dt_),2) < min(dt_)) { round(min(dt_)+0.01,2) }else{ round(min(dt_),2) }
+    
+    cols1_ = u1_ = NULL
+    inds_ = which( dt_ <= lowWhisker_)
+    len_ = length(inds_)
+    if(0 < len_)
+    {
+      cols1_ = colorRampPalette(colors = c('grey80','red','red4'))(len_)
+      u1_ = dt_[inds_[length(inds_)]]
+    }
+    
+    cols2_ = u2_ = NULL
+    inds_ = which(lowWhisker_ < dt_ & dt_ < quartiles_[1])
+    len_ = length(inds_)
+    if(0 < length(inds_))
+    {
+      cols2_ = colorRampPalette(colors = c('orange','orange4'))(len_)
+      u2_ = dt_[inds_[length(inds_)]]
+    }
+    
+    cols3_ = u3_ = NULL
+    inds_ = which(quartiles_[1] <= dt_ & dt_ <= quartiles_[2])
+    len_ = length(inds_)
+    if(0 < length(inds_))
+    {
+      cols3_ = colorRampPalette(colors = c("yellow",'yellow4'))(len_)
+      u3_ = dt_[inds_[length(inds_)]]
+    }
+    
+    cols4_ = u4_ = NULL
+    inds_ = which(quartiles_[2] < dt_ & dt_ <= upWhisker_)
+    len_ = length(inds_)
+    if(0 < length(inds_))
+    {
+      cols4_ = colorRampPalette(colors = c('green','green4'))(len_)
+      u4_ = dt_[inds_[length(inds_)]]
+    }
+    
+    cols5_ = NULL
+    u5_ = if(max(dt_) < round(max(dt_),2)) { round(max(dt_)-0.01,2) }else{ round(max(dt_),2) }
+    inds_ = which(upWhisker_ < dt_)
+    len_ = length(inds_)
+    if(0 < length(inds_))
+    {
+      cols5_ = colorRampPalette(colors = c('skyblue','blue4'))(len_)
+    }
+    
+    cols_ = c(cols1_, cols2_, cols3_, cols4_, cols5_)
+    col_step = 2*(diff(range(dt_))/length(cols_))
 
     for(plate_ in 1:numOfPlates)
     {
       dt_mat = MFI_mats[[plate_]][[chnl_]]/1e4      # palte plate_ showing MFI of channel chnl_
       dt_mat = rbind(dt_mat, MAX = c(max_, rep(0,ncol(dt_mat)-1)))
-
-      dt_ = unique(as.numeric(dt_mat))
-
-      IQR_ = IQR(dt_)
-      quartiles_ = quantile(dt_, probs = c(.25, .75))
-      lowWhisker_ = max(min(dt_), quartiles_[1] - IQR_*1.5)
-      upWhisker_ = min(max(dt_), quartiles_[2] + IQR_*1.5)
-
-      dt_ = sort(dt_, decreasing = F)
-
-      u0_ = if( round(min(dt_),2) < min(dt_)) { round(min(dt_)+0.01,2) }else{ round(min(dt_),2) }
-      
-      cols1_ = u1_ = NULL
-      inds_ = which( dt_ <= lowWhisker_)
-      len_ = length(inds_)
-      if(0 < len_)
-      {
-        cols1_ = colorRampPalette(colors = c('grey80','red','red4'))(len_)
-        u1_ = dt_[inds_[length(inds_)]]
-      }
-
-      cols2_ = u2_ = NULL
-      inds_ = which(lowWhisker_ < dt_ & dt_ < quartiles_[1])
-      len_ = length(inds_)
-      if(0 < length(inds_))
-      {
-        cols2_ = colorRampPalette(colors = c('orange','orange4'))(len_)
-        u2_ = dt_[inds_[length(inds_)]]
-      }
-
-      cols3_ = u3_ = NULL
-      inds_ = which(quartiles_[1] <= dt_ & dt_ <= quartiles_[2])
-      len_ = length(inds_)
-      if(0 < length(inds_))
-      {
-        cols3_ = colorRampPalette(colors = c("yellow",'yellow4'))(len_)
-        u3_ = dt_[inds_[length(inds_)]]
-      }
-
-      cols4_ = u4_ = NULL
-      inds_ = which(quartiles_[2] < dt_ & dt_ <= upWhisker_)
-      len_ = length(inds_)
-      if(0 < length(inds_))
-      {
-        cols4_ = colorRampPalette(colors = c('green','green4'))(len_)
-        u4_ = dt_[inds_[length(inds_)]]
-      }
-
-      cols5_ = NULL
-      u5_ = if(max(dt_) < round(max(dt_),2)) { round(max(dt_)-0.01,2) }else{ round(max(dt_),2) }
-      inds_ = which(upWhisker_ < dt_)
-      len_ = length(inds_)
-      if(0 < length(inds_))
-      {
-        cols5_ = colorRampPalette(colors = c('skyblue','blue4'))(len_)
-      }
-
-      cols_ = c(cols1_, cols2_, cols3_, cols4_, cols5_)
-      col_step = 2*(diff(range(dt_))/length(cols_))
       p_ = pheatmap(mat = dt_mat,
                     cluster_cols = F,
                     cluster_rows = F,
