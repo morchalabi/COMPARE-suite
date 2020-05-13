@@ -219,7 +219,7 @@ for(row_ in 0:nrow(out_$cliques))
   dt_ = list()
   for(smpl_ in smpls_)
   {
-    tmp_ = read.FCS(filename = paste0('../out/',smpl_,'.fcs'), transformation = F)@exprs[,chnls_, drop = F]
+    tmp_ = read.FCS(filename = paste0('../data/FCS/FCS_mouse/batch3/screen9_mouse_554_day_3/min_1000/compensated_corrected/',smpl_,'.fcs'), transformation = F)@exprs[,chnls_, drop = F]#!!!!!!!!!!!!!! change to out !!!!!!!!!!!!!!!!!!!!
     tmp_[which(tmp_ < 0 | is.na(tmp_) | is.nan(tmp_))] = 0
     tmp_ = log(tmp_+1)
     dt_[[smpl_]] = tmp_
@@ -285,8 +285,8 @@ graphics.off()
 message('Clique heatmap')
 
 centroids_ = apply(X = centroids_, MARGIN = 2, FUN = function(chnl_){ return( (chnl_-min(chnl_))/diff(range(chnl_)) ) })      # scaling each channel to [0,1]
-min_ = if(round(min(dt_mat),2) < min(dt_mat)) { round(min(dt_mat)+0.01,2) }else{round(min(dt_mat),2)}
-max_ = if(max(dt_mat) < round(max(dt_mat),2)) { round(max(dt_mat)-0.01,2) }else{round(max(dt_mat),2)}
+min_ = if(round(min(centroids_),2) < min(centroids_)) { round(min(centroids_)+0.01,2) }else{round(min(centroids_),2)}
+max_ = if(max(centroids_) < round(max(centroids_),2)) { round(max(centroids_)-0.01,2) }else{round(max(centroids_),2)}
 for(mtd_ in c('mcquitty',"average","ward.D","ward.D2","single","complete","median","centroid"))
 {
   pheatmap(mat = centroids_,
