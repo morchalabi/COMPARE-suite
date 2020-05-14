@@ -219,7 +219,7 @@ for(row_ in 0:nrow(out_$cliques))
   dt_ = list()
   for(smpl_ in smpls_)
   {
-    tmp_ = read.FCS(filename = paste0('../data/FCS/FCS_mouse/batch3/screen9_mouse_554_day_3/min_1000/compensated_corrected/',smpl_,'.fcs'), transformation = F)@exprs[,chnls_, drop = F]#!!!!!!!!!!!!!! change to out !!!!!!!!!!!!!!!!!!!!
+    tmp_ = read.FCS(filename = paste0('../out/',smpl_,'.fcs'), transformation = F)@exprs[,chnls_, drop = F]
     tmp_[which(tmp_ < 0 | is.na(tmp_) | is.nan(tmp_))] = 0
     tmp_ = log(tmp_+1)
     dt_[[smpl_]] = tmp_

@@ -307,100 +307,208 @@ if(HEATPLOT)
   nrow_ = floor(sqrt(numOfPlates))                          # number of rows per page
   ncol_ = ceiling(numOfPlates/floor(sqrt(numOfPlates)))     # number of columns per page
   width_ = height_ = max(nrow_, ncol_)*8.45                 # every heatmap takes up this width/height in inches
-  fl_ = paste0('../out/plates_heatmap_correction.pdf')
-  if(!CORRECT) { fl_ = paste0('../out/plates_heatmap_no_correction.pdf') }
-  pdf(file = fl_, width = width_, height = height_)
-  for(chnl_ in chnls_)
+  
+  if(!CORRECT)
   {
-    plot_list = list()
-
-    # finding max in all plates
-    max_ = 0
-    dt_ = NULL
-    for(plate_ in 1:numOfPlates)
+    fl_ = paste0('../out/plates_heatmap_no_correction.pdf')
+    pdf(file = fl_, width = width_, height = height_)
+    for(chnl_ in chnls_)
     {
-      dt_ = c(dt_, as.numeric(MFI_mats[[plate_]][[chnl_]]/1e4))     # palte plate_ showing MFI of channel chnl_
+      plot_list = list()
+      
+      # finding max in all plates
+      max_ = 0
+      for(plate_ in 1:numOfPlates)
+      {
+        max_tmp = max(MFI_mats[[plate_]][[chnl_]]/1e4)     # palte plate_ showing MFI of channel chnl_
+        if(max_ < max_tmp) { max_ = max_tmp }
+      }
+      
+      for(plate_ in 1:numOfPlates)
+      {
+        dt_mat = MFI_mats[[plate_]][[chnl_]]/1e4      # palte plate_ showing MFI of channel chnl_
+        dt_mat = rbind(dt_mat, MAX = c(max_, rep(0,ncol(dt_mat)-1)))
+        
+        dt_ = unique(as.numeric(dt_mat))
+        
+        IQR_ = IQR(dt_)
+        quartiles_ = quantile(dt_, probs = c(.25, .75))
+        lowWhisker_ = max(min(dt_), quartiles_[1] - IQR_*1.5)
+        upWhisker_ = min(max(dt_), quartiles_[2] + IQR_*1.5)
+        
+        dt_ = sort(dt_, decreasing = F)
+        
+        u0_ = if( round(min(dt_),2) < min(dt_)) { round(min(dt_)+0.01,2) }else{ round(min(dt_),2) }
+        
+        cols1_ = u1_ = NULL
+        inds_ = which( dt_ <= lowWhisker_)
+        len_ = length(inds_)
+        if(0 < len_)
+        {
+          cols1_ = colorRampPalette(colors = c('grey80','red','red4'))(len_)
+          u1_ = dt_[inds_[length(inds_)]]
+        }
+        
+        cols2_ = u2_ = NULL
+        inds_ = which(lowWhisker_ < dt_ & dt_ < quartiles_[1])
+        len_ = length(inds_)
+        if(0 < length(inds_))
+        {
+          cols2_ = colorRampPalette(colors = c('orange','orange4'))(len_)
+          u2_ = dt_[inds_[length(inds_)]]
+        }
+        
+        cols3_ = u3_ = NULL
+        inds_ = which(quartiles_[1] <= dt_ & dt_ <= quartiles_[2])
+        len_ = length(inds_)
+        if(0 < length(inds_))
+        {
+          cols3_ = colorRampPalette(colors = c("yellow",'yellow4'))(len_)
+          u3_ = dt_[inds_[length(inds_)]]
+        }
+        
+        cols4_ = u4_ = NULL
+        inds_ = which(quartiles_[2] < dt_ & dt_ <= upWhisker_)
+        len_ = length(inds_)
+        if(0 < length(inds_))
+        {
+          cols4_ = colorRampPalette(colors = c('green','green4'))(len_)
+          u4_ = dt_[inds_[length(inds_)]]
+        }
+        
+        cols5_ = NULL
+        u5_ = if(max(dt_) < round(max(dt_),2)) { round(max(dt_)-0.01,2) }else{ round(max(dt_),2) }
+        inds_ = which(upWhisker_ < dt_)
+        len_ = length(inds_)
+        if(0 < length(inds_))
+        {
+          cols5_ = colorRampPalette(colors = c('skyblue','blue4'))(len_)
+        }
+        
+        cols_ = c(cols1_, cols2_, cols3_, cols4_, cols5_)
+        col_step = 2*(diff(range(dt_))/length(cols_))
+        
+        p_ = pheatmap(mat = dt_mat,
+                      cluster_cols = F,
+                      cluster_rows = F,
+                      show_rownames = T, cellheight = 20,
+                      show_colnames = T, cellwidth = 20,
+                      main = paste0('Plate: ',plate_,', Channel: ', chnl_),
+                      fontsize = 7,
+                      border_color = 'grey90', color = cols_,
+                      breaks = c(min(dt_)-col_step,dt_),     # in pheatmap color intervals (showing lower and uper bounds) are open on the left and closed on the right
+                      legend = T,
+                      legend_breaks = round(c(u0_,0,u1_,u2_, u3_, u4_, u5_),2),
+                      annotation_col = NA, silent = T)
+        plot_list[[plate_]] = p_[[4]]
+      }
+      grid.arrange(arrangeGrob(grobs= plot_list, nrow = nrow_, ncol = ncol_))
     }
-    max_ = max(dt_)
-    dt_ = unique(dt_)
+    graphics.off()
     
-    IQR_ = IQR(dt_)
-    quartiles_ = quantile(dt_, probs = c(.25, .75))
-    lowWhisker_ = max(min(dt_), quartiles_[1] - IQR_*1.5)
-    upWhisker_ = min(max(dt_), quartiles_[2] + IQR_*1.5)
-    
-    dt_ = sort(dt_, decreasing = F)
-    
-    u0_ = if( round(min(dt_),2) < min(dt_)) { round(min(dt_)+0.01,2) }else{ round(min(dt_),2) }
-    
-    cols1_ = u1_ = NULL
-    inds_ = which( dt_ <= lowWhisker_)
-    len_ = length(inds_)
-    if(0 < len_)
+  }else
+  {
+    fl_ = paste0('../out/plates_heatmap_correction.pdf')
+    pdf(file = fl_, width = width_, height = height_)
+    for(chnl_ in chnls_)
     {
-      cols1_ = colorRampPalette(colors = c('grey80','red','red4'))(len_)
-      u1_ = dt_[inds_[length(inds_)]]
+      plot_list = list()
+  
+      # finding max in all plates
+      max_ = 0
+      dt_ = NULL
+      for(plate_ in 1:numOfPlates)
+      {
+        dt_ = c(dt_, as.numeric(MFI_mats[[plate_]][[chnl_]]/1e4))     # palte plate_ showing MFI of channel chnl_
+      }
+      max_ = max(dt_)
+      
+      ###
+      
+      dt_ = unique(dt_)
+      IQR_ = IQR(dt_)
+      quartiles_ = quantile(dt_, probs = c(.25, .75))
+      lowWhisker_ = max(min(dt_), quartiles_[1] - IQR_*1.5)
+      upWhisker_ = min(max(dt_), quartiles_[2] + IQR_*1.5)
+      
+      dt_ = sort(dt_, decreasing = F)
+      
+      u0_ = if( round(min(dt_),2) < min(dt_)) { round(min(dt_)+0.01,2) }else{ round(min(dt_),2) }
+      
+      cols1_ = u1_ = NULL
+      inds_ = which( dt_ <= lowWhisker_)
+      len_ = length(inds_)
+      if(0 < len_)
+      {
+        cols1_ = colorRampPalette(colors = c('grey80','red','red4'))(len_)
+        u1_ = dt_[inds_[length(inds_)]]
+      }
+      
+      cols2_ = u2_ = NULL
+      inds_ = which(lowWhisker_ < dt_ & dt_ < quartiles_[1])
+      len_ = length(inds_)
+      if(0 < length(inds_))
+      {
+        cols2_ = colorRampPalette(colors = c('orange','orange4'))(len_)
+        u2_ = dt_[inds_[length(inds_)]]
+      }
+      
+      cols3_ = u3_ = NULL
+      inds_ = which(quartiles_[1] <= dt_ & dt_ <= quartiles_[2])
+      len_ = length(inds_)
+      if(0 < length(inds_))
+      {
+        cols3_ = colorRampPalette(colors = c("yellow",'yellow4'))(len_)
+        u3_ = dt_[inds_[length(inds_)]]
+      }
+      
+      cols4_ = u4_ = NULL
+      inds_ = which(quartiles_[2] < dt_ & dt_ <= upWhisker_)
+      len_ = length(inds_)
+      if(0 < length(inds_))
+      {
+        cols4_ = colorRampPalette(colors = c('green','green4'))(len_)
+        u4_ = dt_[inds_[length(inds_)]]
+      }
+      
+      cols5_ = NULL
+      u5_ = if(max(dt_) < round(max(dt_),2)) { round(max(dt_)-0.01,2) }else{ round(max(dt_),2) }
+      inds_ = which(upWhisker_ < dt_)
+      len_ = length(inds_)
+      if(0 < length(inds_))
+      {
+        cols5_ = colorRampPalette(colors = c('skyblue','blue4'))(len_)
+      }
+      
+      cols_ = c(cols1_, cols2_, cols3_, cols4_, cols5_)
+      col_step = 2*(diff(range(dt_))/length(cols_))
+  
+      for(plate_ in 1:numOfPlates)
+      {
+        LEGEND_SHOW = F
+        if(plate_ == 1) { LEGEND_SHOW = T }
+        
+        dt_mat = MFI_mats[[plate_]][[chnl_]]/1e4      # palte plate_ showing MFI of channel chnl_
+        dt_mat = rbind(dt_mat, MAX = c(max_, rep(0,ncol(dt_mat)-1)))
+        
+        p_ = pheatmap(mat = dt_mat,
+                      cluster_cols = F,
+                      cluster_rows = F,
+                      show_rownames = T, cellheight = 20,
+                      show_colnames = T, cellwidth = 20,
+                      main = paste0('Plate: ',plate_,', Channel: ', chnl_),
+                      fontsize = 7,
+                      border_color = 'grey90', color = cols_,
+                      breaks = c(min(dt_)-col_step,dt_),     # in pheatmap color intervals (showing lower and uper bounds) are open on the left and closed on the right
+                      legend = LEGEND_SHOW,
+                      legend_breaks = round(c(u0_,0,u1_,u2_, u3_, u4_, u5_),2),
+                      annotation_col = NA, silent = T)
+        plot_list[[plate_]] = p_[[4]]
+      }
+      grid.arrange(arrangeGrob(grobs= plot_list, nrow = nrow_, ncol = ncol_))
     }
-    
-    cols2_ = u2_ = NULL
-    inds_ = which(lowWhisker_ < dt_ & dt_ < quartiles_[1])
-    len_ = length(inds_)
-    if(0 < length(inds_))
-    {
-      cols2_ = colorRampPalette(colors = c('orange','orange4'))(len_)
-      u2_ = dt_[inds_[length(inds_)]]
-    }
-    
-    cols3_ = u3_ = NULL
-    inds_ = which(quartiles_[1] <= dt_ & dt_ <= quartiles_[2])
-    len_ = length(inds_)
-    if(0 < length(inds_))
-    {
-      cols3_ = colorRampPalette(colors = c("yellow",'yellow4'))(len_)
-      u3_ = dt_[inds_[length(inds_)]]
-    }
-    
-    cols4_ = u4_ = NULL
-    inds_ = which(quartiles_[2] < dt_ & dt_ <= upWhisker_)
-    len_ = length(inds_)
-    if(0 < length(inds_))
-    {
-      cols4_ = colorRampPalette(colors = c('green','green4'))(len_)
-      u4_ = dt_[inds_[length(inds_)]]
-    }
-    
-    cols5_ = NULL
-    u5_ = if(max(dt_) < round(max(dt_),2)) { round(max(dt_)-0.01,2) }else{ round(max(dt_),2) }
-    inds_ = which(upWhisker_ < dt_)
-    len_ = length(inds_)
-    if(0 < length(inds_))
-    {
-      cols5_ = colorRampPalette(colors = c('skyblue','blue4'))(len_)
-    }
-    
-    cols_ = c(cols1_, cols2_, cols3_, cols4_, cols5_)
-    col_step = 2*(diff(range(dt_))/length(cols_))
-
-    for(plate_ in 1:numOfPlates)
-    {
-      dt_mat = MFI_mats[[plate_]][[chnl_]]/1e4      # palte plate_ showing MFI of channel chnl_
-      dt_mat = rbind(dt_mat, MAX = c(max_, rep(0,ncol(dt_mat)-1)))
-      p_ = pheatmap(mat = dt_mat,
-                    cluster_cols = F,
-                    cluster_rows = F,
-                    show_rownames = T, cellheight = 20,
-                    show_colnames = T, cellwidth = 20, legend = T,
-                    main = paste0('Plate: ',plate_,', Channel: ', chnl_),
-                    fontsize = 7,
-                    border_color = 'grey90', color = cols_,
-                    breaks = c(min(dt_)-col_step,dt_),     # in pheatmap color intervals (showing lower and uper bounds) are open on the left and closed on the right
-                    legend_breaks = round(c(u0_,0,u1_,u2_, u3_, u4_, u5_),2),
-                    annotation_col = NA, silent = T)
-      plot_list[[plate_]] = p_[[4]]
-    }
-    grid.arrange(arrangeGrob(grobs= plot_list, nrow = nrow_, ncol = ncol_))
+    graphics.off()
   }
-  graphics.off()
 }
 
 message('\nDone!\n')
