@@ -63,15 +63,17 @@ message('Adding information to drug tables')
 
 smpl_tbl = out_$samples_table
 
-wells_drugs$community =  wells_drugs$sim_vs_control = wells_drugs$sim_vs_all = NA
+wells_drugs$community =  wells_drugs$sim_vs_control = wells_drugs$sim_vs_all = wells_drugs$live_cells = NA
 for(row_ in 1:nrow(smpl_tbl))
 {
   rowIndx = which(wells_drugs$file %in% smpl_tbl$sample[row_])
   wells_drugs$sim_vs_all[rowIndx] = smpl_tbl$sim_vs_all[row_]
   wells_drugs$sim_vs_control[rowIndx] = smpl_tbl$sim_vs_control[row_]
   wells_drugs$community[rowIndx] = smpl_tbl$community[row_]
+  wells_drugs$live_cells[rowIndx] = nrow(read.FCS(filename = paste0('../out/',smpl_tbl$sample[row_],'.fcs'),transformation = F)@exprs)
 }
-wells_drugs = wells_drugs[order(wells_drugs$drug, wells_drugs$concentration, decreasing = T),c("drug","concentration","control","sim_vs_control","community","sim_vs_all","file")]
+wells_drugs = wells_drugs[order(wells_drugs$drug, wells_drugs$concentration, decreasing = T),c("drug","concentration","control","sim_vs_control","community","sim_vs_all","live_cells","file")]
+wells_drugs$live_cells = round(wells_drugs$live_cells/max(wells_drugs$live_cells)*100,2)
 
 write.table(x = wells_drugs, file = paste0('../out/drugs_table','.tsv'), sep = '\t', col.names = T, quote = F, row.names = F)
 
@@ -178,23 +180,30 @@ graphics.off()
 message('Writting cliques')
 
 clqs_ = out_$cliques
-if( !is.na(wells_drugs$concentration[1]) )      # if there are drug doses
+clqs_tmp = character()
+live_ = double()
+fls_ = character()
+for(row_ in 1:nrow(clqs_))
 {
-  clqs_tmp = character()
-  for(row_ in 1:nrow(clqs_))
+  clq_ = clqs_[row_,,drop = F]                                              # current clique
+  smpls_ = strsplit(x = as.character(clq_$Cliques), split = '[,]')[[1]]     # samples in this clique
+  tmp_ = wells_drugs[which(wells_drugs$file %in% smpls_),,drop = F]         # subtable of drug table containing these samples
+  smpls_ = character()
+  if(!is.na(wells_drugs$concentration[1]))
   {
-    clq_ = clqs_[row_,,drop = F]                                              # current clique
-    smpls_ = strsplit(x = as.character(clq_$Cliques), split = '[,]')[[1]]     # samples in this clique
-    tmp_ = wells_drugs[wells_drugs$file %in% smpls_,,drop = F]                # subtable of drug table containing these samples
-    smpls_ = character()
     for(r_ in 1:nrow(tmp_))
     {
-       smpls_ = c(smpls_,paste0(tmp_$drug[r_],'_',tmp_$concentration[r_]))
+      smpls_ = c(smpls_,paste0(tmp_$drug[r_],'_',tmp_$concentration[r_]))
     }
-    clqs_tmp[row_] = paste(smpls_,collapse = ',')
+  }else
+  {
+    smpls_ = tmp_$drug
   }
-  clqs_ = cbind(Clique = clqs_tmp, Community = out_$cliques$Community, File = as.character(out_$cliques$Cliques))
+  clqs_tmp[row_] = paste(smpls_,collapse = ',')
+  live_[row_] = paste(tmp_$live_cells,collapse = ',')
+  fls_[row_] = paste(tmp_$file,collapse = ',')
 }
+clqs_ = cbind(Clique = clqs_tmp, ID = 1:nrow(clqs_), Community = out_$cliques$Community, live_cels = live_, File = fls_)
 write.table(x = clqs_, file = paste0('../out/Cliques','.tsv'), sep = '\t', col.names = T, quote = F, row.names = F)
 
 # STEP 8: Dispersion map ####
@@ -257,7 +266,7 @@ for(chnl_ in chnls_)
         geom_text_repel(box.padding = unit(0.9, "lines"),                           # handle of control label
                         label = c('Control',rep('',nrow(umap_)-1)),                 # control label
                         color = 'darkgreen',                                        # color of control label
-                        size = 7,show.legend = F, fontface = 2,)+                   # miscelaneous
+                        size = 7,show.legend = F, fontface = 2)+                   # miscelaneous
         scale_color_gradientn(colours = c('red','orange','yellow','blue','black'),
                               limits=c(min(centroids_[,chnl_]),max(centroids_[,chnl_])),
                               breaks = round(seq(min(centroids_[,chnl_])+0.01,max(centroids_[,chnl_])-0.01, length.out = 3),2) )
