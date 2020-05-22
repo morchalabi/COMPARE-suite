@@ -69,6 +69,8 @@ plates_ = sort(unique(annot_$plate))
 # reading fcs files of each plate
 
 MFI_mats = list()
+annot_ls = list()
+rows_ = cols_ = NULL
 for(plate_ in plates_)
 {
   # Reading fcs files ####
@@ -91,8 +93,15 @@ for(plate_ in plates_)
   }
   for(rw_ in 1:nrow(annot_tmp))
   {
-    fcs_dt_tmp = tryCatch(expr = read.FCS(filename = paste0('../out/',annot_tmp$file[rw_],'.fcs'), transformation = F), error = function(err_) { message(err_); return(new('flowFrame')) })
-    if( nrow(fcs_dt_tmp@exprs) < min_events) { warning(fl_,' had fewer events than ',min_events,'; no correction was performed!'); next() }
+    fcs_dt_tmp = tryCatch(expr = read.FCS(filename = paste0('../data/',annot_tmp$file[rw_],'.fcs'), transformation = F),
+                          error = function(err_) { message(err_); return(new('flowFrame')) })     # some FCS files could be broken, flowCore throws exception
+    if( nrow(fcs_dt_tmp@exprs) < min_events)
+    {
+      warning(annot_tmp$file[rw_],' had fewer events than ',min_events,'; no correction was performed!')
+      write.FCS(x = fcs_dt_tmp, filename = paste0('../data/',annot_tmp$file[rw_],'_REMOVE.fcs'))
+      annot_tmp$file[rw_] = NA
+      next()
+    }
 
     # computing offset from beginning of plate matrix
     i_ = which(rows_ == annot_tmp$row[rw_])
@@ -106,8 +115,8 @@ for(plate_ in plates_)
     {
       # MFIs
       dt_tmp = fcs_dt[[offset_]]@exprs[,chnl_, drop = T]
-      dt_tmp = dt_tmp[which(0 <= dt_tmp)]                          # N.B.: which igonores NA and NaNs. Non-positives are always non-positives even in presence of drift
-      IQR_ = IQR(dt_tmp)                                           # inter-quantile region
+      dt_tmp = dt_tmp[which(0 <= dt_tmp)]                           # N.B.: which igonores NA and NaNs. Non-positives are always non-positives even in presence of drift
+      IQR_ = IQR(dt_tmp)                                            # inter-quantile region
       quartiles_ = quantile(dt_tmp, probs = c(.25, .75))            # 25th and 75th percentiles
       lowWhisker_ = max(min(dt_tmp), quartiles_[1] - IQR_*1.5)      # lower whisker
       upWhisker_ = min(max(dt_tmp), quartiles_[2] + IQR_*1.5)
@@ -124,7 +133,6 @@ for(plate_ in plates_)
     # computing intra-plate correction coefficients for each channels of current plate!
 
     if(FITPLOT) { pdf(file = paste0('../out/MFI_fit_plate',plate_,'.pdf')) }
-    intercepts_ = list()
     for(chnl_ in chnls_)
     {
       # computing correction factors
@@ -143,27 +151,23 @@ for(plate_ in plates_)
       # fitting regressed line
 
       fit_ = lm(data = data.frame(offset = 1:length(y_tmp), chnl = y_tmp), formula = chnl~offset)
-      a_ = fit_$coefficients["offset"]                                                                            # slope
-      if(a_ <= 0)
-      {
-        warning(paste0('Slope for plate #',plate_,' channel #',chnl_,' was negative, no intra-plate correction is performed!'))
-        next()
-      }
+      a_ = fit_$coefficients["offset"]      # slope
+      if(a_ <= 0) { warning(paste0('Slope for plate #',plate_,' channel #',chnl_,' was negative, no intra-plate correction is performed!')); next() }
       b_ = fit_$coefficients["(Intercept)"]
-      alpha_ = (a_*x_)/(a_*x_ + b_)     # correction factors
+      alpha_ = (a_*x_)/(a_*x_ + b_)         # correction factors
 
       # correction
 
-      for(offset_ in 1:length(fcs_dt))      # fcs files in fcs_dt are already ordered by their offset in MFI matrix (MFI_mat)
+      for(offset_ in 1:length(fcs_dt))                # fcs files in fcs_dt are already ordered according to their offset in MFI matrix (MFI_mat)
       {
-        if(is.null(fcs_dt[[offset_]])) { next() }
+        if(is.null(fcs_dt[[offset_]])) { next() }     # if a fcs file is empty or has fewer cells than min_events, no correction is perfomed
 
         # correcting fcs file
         fcs_dt[[offset_]]@exprs[,chnl_] = fcs_dt[[offset_]]@exprs[,chnl_]*(1-alpha_[offset_])
 
         # correcting MFIs of current fcs (to avoid recomputing IQR)
         p_ = offset_/m_
-        i_ = round((p_-ceiling(p_)+1)*m_)     # round is added because arithmatic on integer and double is not exact in R
+        i_ = round((p_-ceiling(p_)+1)*m_)             # round is added because arithmatic on integer and double is not exact in R
         j_ = round(ceiling(p_))
         MFI_mat[[chnl_]][i_,j_] = MFI_mat[[chnl_]][i_,j_]*(1-alpha_[offset_])
       }
@@ -186,19 +190,24 @@ for(plate_ in plates_)
     }
     if(FITPLOT) { graphics.off() }
 
-    # writing temporary intra-plate corrected fcs files
+    # writing intra-plate corrected fcs files temporarily in out
 
     for(offset_ in 1:length(fcs_dt))
     {
       if(is.null(fcs_dt[[offset_]])) { next() }
-
-      fcs_dt[[offset_]]@description$`$FIL` = paste0(fcs_dt[[offset_]]@description$`$FIL`,'_corrected')
-      write.FCS(x = fcs_dt[[offset_]], filename = paste0('../out/',fcs_flNms[offset_],'.fcs'))      # matrix of events in this well
+      write.FCS(x = fcs_dt[[offset_]], filename = paste0('../data/',fcs_flNms[offset_],'.fcs'))      # matrix of events in this well
     }
   }
   rm(fcs_dt)
   MFI_mats[[plate_]] = MFI_mat
+  annot_ls[[plate_]] = annot_tmp
 }
+
+# updating annotation file by removing uncorrected files
+
+annot_ls = do.call(what = rbind, args = annot_ls)
+annot_ = annot_ls[!is.na(annot_ls$file),]
+write.table(x = annot_, file = '../data/Annotations.txt',quote = F,sep = '\t',row.names = F,col.names = T)
 
 # STEP 3: Correcting for inter-plate batch effect ####
 
@@ -226,13 +235,10 @@ if(CORRECT)
   {
     # Reading fcs files ####
     
-    annot_tmp = annot_[annot_$plate %in% plate_,]
-    rows_ = sort(unique(annot_tmp$row))
-    cols_ = sort(unique(annot_tmp$column))
-    
+    annot_tmp = annot_[annot_$plate %in% plate_,]     # annot_ has been updated to contain only corrected fcs files
     for(rw_ in 1:nrow(annot_tmp))
     {
-      fcs_dt = read.FCS(filename = paste0('../out/',annot_tmp$file[rw_],'.fcs'), transformation = F)      # matrix of events in this well
+      fcs_dt = read.FCS(filename = paste0('../data/',annot_tmp$file[rw_],'.fcs'), transformation = F)
       
       # computing offset from beginning of plate matrix
       i_ = which(rows_ == annot_tmp$row[rw_])
@@ -243,7 +249,7 @@ if(CORRECT)
       for(chnl_ in chnls_)
       {
         # computing correction factors
-        alpha_ = (new_intcpts[[chnl_]] - old_intcpts[plate_,chnl_])/old_intcpts[plate_,chnl_]     # correction factors
+        alpha_ = (new_intcpts[[chnl_]] - old_intcpts[plate_,chnl_])/old_intcpts[plate_,chnl_]     # correction factors (fold changes)
 
         # correcting fcs file
         fcs_dt@exprs[,chnl_] = fcs_dt@exprs[,chnl_]*(1+alpha_)
@@ -253,7 +259,8 @@ if(CORRECT)
       }
       
       # writing corrected fcs files
-      write.FCS(x = fcs_dt, filename = paste0('../out/',annot_tmp$file[rw_],'.fcs'))      # matrix of events in this well
+      fcs_dt@description$`$FIL` = paste0(fcs_dt@description$`$FIL`,'_corrected')
+      write.FCS(x = fcs_dt, filename = paste0('../data/',annot_tmp$file[rw_],'.fcs'))      # matrix of events in this well
     }
     
     # Writing MFI matrices ####
@@ -338,8 +345,6 @@ if(HEATPLOT)
         
         dt_ = sort(dt_, decreasing = F)
         
-        u0_ = if( round(min(dt_),2) < min(dt_)) { round(min(dt_)+0.01,2) }else{ round(min(dt_),2) }
-        
         cols1_ = u1_ = NULL
         inds_ = which( dt_ <= lowWhisker_)
         len_ = length(inds_)
@@ -347,6 +352,7 @@ if(HEATPLOT)
         {
           cols1_ = colorRampPalette(colors = c('grey80','red','red4'))(len_)
           u1_ = dt_[inds_[length(inds_)]]
+          if(u1_ == 0) { u1_ = NULL}      # to avoid redundant legend key on the heatmap
         }
         
         cols2_ = u2_ = NULL
@@ -398,7 +404,7 @@ if(HEATPLOT)
                       border_color = 'grey90', color = cols_,
                       breaks = c(min(dt_)-col_step,dt_),     # in pheatmap color intervals (showing lower and uper bounds) are open on the left and closed on the right
                       legend = T,
-                      legend_breaks = round(c(u0_,0,u1_,u2_, u3_, u4_, u5_),2),
+                      legend_breaks = round(c(0,u1_,u2_, u3_, u4_, u5_),2),
                       annotation_col = NA, silent = T)
         plot_list[[plate_]] = p_[[4]]
       }
@@ -433,8 +439,6 @@ if(HEATPLOT)
       
       dt_ = sort(dt_, decreasing = F)
       
-      u0_ = if( round(min(dt_),2) < min(dt_)) { round(min(dt_)+0.01,2) }else{ round(min(dt_),2) }
-      
       cols1_ = u1_ = NULL
       inds_ = which( dt_ <= lowWhisker_)
       len_ = length(inds_)
@@ -442,6 +446,7 @@ if(HEATPLOT)
       {
         cols1_ = colorRampPalette(colors = c('grey80','red','red4'))(len_)
         u1_ = dt_[inds_[length(inds_)]]
+        if(u1_ == 0) { u1_ = 0}     # to avoid redundant legend key on heatmap
       }
       
       cols2_ = u2_ = NULL
@@ -501,7 +506,7 @@ if(HEATPLOT)
                       border_color = 'grey90', color = cols_,
                       breaks = c(min(dt_)-col_step,dt_),     # in pheatmap color intervals (showing lower and uper bounds) are open on the left and closed on the right
                       legend = LEGEND_SHOW,
-                      legend_breaks = round(c(u0_,0,u1_,u2_, u3_, u4_, u5_),2),
+                      legend_breaks = round(c(0,u1_,u2_, u3_, u4_, u5_),2),
                       annotation_col = NA, silent = T)
         plot_list[[plate_]] = p_[[4]]
       }

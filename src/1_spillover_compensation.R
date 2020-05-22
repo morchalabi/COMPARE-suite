@@ -3,7 +3,7 @@ require(flowCore)
 args_ = commandArgs(trailingOnly = T)
 
 ###### Manual Debugging ########
-# args_ = c('--min-events','1000')
+args_ = c('--min-events','1000')
 ################################
 
 # STEP 0: Options control ####
@@ -35,8 +35,14 @@ for(fl_ in fls_)
 {
   message('Reading ',fl_)
 
-  dt_ = tryCatch(expr = read.FCS(filename = paste0('../data/',fl_), transformation = F), error = function(err_) { message(err_); return(new('flowFrame')) })
-  if( nrow(dt_@exprs) < min_events) { warning(fl_,' had fewer events than ',min_events,'; no compensation was performed!'); next() }
+  dt_ = tryCatch(expr = read.FCS(filename = paste0('../data/',fl_), transformation = F),
+                 error = function(err_) { message(err_); return(new('flowFrame')) })     # some FCS files could be broken, flowCore throws exception
+  if( nrow(dt_@exprs) < min_events)
+  {
+    warning(fl_,' had fewer events than ',min_events,'; no compensation was performed!')
+    write.FCS(x = dt_, filename = paste0('../data/','REMOVE_',fl_))
+    next()
+  }
 
   if(2 < as.integer(dt_@description$FCSversion))
   {
@@ -61,7 +67,7 @@ for(fl_ in fls_)
 
       # writing compensated fcs file
 
-      write.FCS(x = dt_, filename = paste0('../out/',fl_))
+      write.FCS(x = dt_, filename = paste0('../data/',fl_))
     }
   }
 }
