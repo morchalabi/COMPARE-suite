@@ -29,7 +29,7 @@ if(length(merge_) == 0) { INVALID = T }
 if(INVALID)
 {
   message('\nInvalid call. Usage:\n',
-          'Rscript 3_similarity_matrix_generator.R \\\n',
+          'Rscript 5_similarity_matrix_generator.R \\\n',
           '-chnl \'SSC-H,VL1-H,VL6-H,BL1-H,BL3-H,BL5-H,RL1-H\' \\\n',
           '-merge TRUE \\\n',
           '-cpu 3\n')
@@ -46,7 +46,7 @@ options(nwarnings = 10000)      # shows all warnings (default is last 50)
 
 # STEP 1: Making similarity score matrix ####
 
-fls_ = list.files(path = '../out/', pattern = '*.fcs')
+fls_ = list.files(path = '../data/', pattern = '*.fcs')
 simMat = matrix(data = 100, nrow = length(fls_), ncol = length(fls_))         # similarity matirx to store scores
 flNms = unlist(lapply(X = fls_, FUN = function(fl_)
                                       {
@@ -59,7 +59,7 @@ for(row_ in 1:(length(fls_)-1))     # for each row of sim mat
 {
   # step 1.1: reading in files ####
 
-  smpl1 = flowCore::read.FCS(filename = paste0('../out/',fls_[row_]), transformation = F)      # input must be untransformed FCS file !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  smpl1 = flowCore::read.FCS(filename = paste0('../data/',fls_[row_]), transformation = F)      # input must be untransformed FCS file !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   smpl1 = smpl1@exprs[,chnls_, drop = F]
   if(nrow(smpl1) == 0)
   {
@@ -76,7 +76,7 @@ for(row_ in 1:(length(fls_)-1))     # for each row of sim mat
             {
               # step 1.3: reading in files ####
 
-              smpl2 = flowCore::read.FCS(filename = paste0('../out/',fls_[col_]), transformation = F)     # data frame (table) of observations
+              smpl2 = flowCore::read.FCS(filename = paste0('../data/',fls_[col_]), transformation = F)     # data frame (table) of observations
               smpl2 = smpl2@exprs[,chnls_, drop = F]
               if(nrow(smpl2) == 0)
               {
