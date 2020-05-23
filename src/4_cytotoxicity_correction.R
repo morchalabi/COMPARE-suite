@@ -6,7 +6,6 @@ require(ggplot2)
 args_ = commandArgs(trailingOnly = T)
 
 ###### Manual Debugging ########
-# args_ = c('--min-events','1000',
 #           '-correct', 'T',
 #           '--fit-plot', 'T',
 #           '--heat-plot', 'T')
@@ -15,10 +14,6 @@ args_ = commandArgs(trailingOnly = T)
 # STEP 0: Options control ####
 
 INVALID = F
-
-min_events = as.integer(args_[which(grepl(x = args_, pattern = '^--min-events', fixed = F))+1])
-min_events = min_events[!is.na(min_events)]
-if(length(min_events) == 0) { INVALID = T }
 
 CORRECT = as.logical(args_[which(grepl(x = args_, pattern = '^-correct', fixed = F))+1])
 CORRECT = CORRECT[!is.na(CORRECT)]
@@ -35,8 +30,7 @@ if(length(HEATPLOT) == 0) { INVALID = T }
 if(INVALID)
 {
   message('\nInvalid call. Usage:\n',
-          'Rscript 2_cytotoxicity_drift_correction.R \\\n',
-          '--min-events 1000 \\\n',
+          'Rscript 4_cytotoxicity_correction.R \\\n',
           '-correct TRUE \\\n',
           '--fit-plot TRUE \\\n',
           '--heat-plot TRUE\n')
@@ -44,7 +38,6 @@ if(INVALID)
 }
 
 message('You set:',
-        '\nminimum events to: ',          min_events,
         '\ncytotoxicity drift correction to: ', CORRECT,
         '\nplotting regressed lines to: ',FITPLOT,
         '\nplotting plate heatmap to:',   HEATPLOT,'\n')
@@ -61,8 +54,6 @@ plates_ = sort(unique(annot_$plate))
 # reading fcs files of each plate
 
 toxicity_mats = list()
-annot_ls = list()
-rows_ = cols_ = NULL
 for(plate_ in plates_)
 {
   # Reading fcs files ####
@@ -80,14 +71,7 @@ for(plate_ in plates_)
   colnames(toxicity_mat) = cols_
   for(rw_ in 1:nrow(annot_tmp))
   {
-    fcs_dt = tryCatch(expr = read.FCS(filename = paste0('../data/',annot_tmp$file[rw_],'.fcs'), transformation = F), error = function(err_) { message(err_); return(new('flowFrame')) })
-    if( nrow(fcs_dt@exprs) < min_events)
-    {
-      warning(annot_tmp$file[rw_],' had fewer events than ',min_events,'; no correction was performed!')
-      write.FCS(x = fcs_dt, filename = paste0('../data/',annot_tmp$file[rw_],'_REMOVE.fcs'))
-      annot_tmp$file[rw_] = NA
-      next()
-    }
+    fcs_dt = read.FCS(filename = paste0('../data/',annot_tmp$file[rw_],'.fcs'), transformation = F)
 
     # computing offset from beginning of plate matrix
     
@@ -159,14 +143,7 @@ for(plate_ in plates_)
     }
   }
   toxicity_mats[[plate_]] = toxicity_mat
-  annot_ls[[plate_]] = annot_tmp
 }
-
-# updating annotation file by removing uncorrected files
-
-annot_ls = do.call(what = rbind, args = annot_ls)
-annot_ = annot_ls[!is.na(annot_ls$file),]
-write.table(x = annot_, file = '../data/Annotations.txt',quote = F,sep = '\t',row.names = F,col.names = T)
 
 # STEP 3: Correcting for inter-plate batch effect ####
 
@@ -183,7 +160,9 @@ if(CORRECT)
   {
     # Reading fcs files ####
     
-    annot_tmp = annot_[annot_$plate %in% plate_,]     # annot_ has been updated to contain only corrected fcs files
+    annot_tmp = annot_[annot_$plate %in% plate_,]
+    rows_ = sort(unique(annot_tmp$row))
+    cols_ = sort(unique(annot_tmp$column))
     for(rw_ in 1:nrow(annot_tmp))
     {
       fcs_dt = read.FCS(filename = paste0('../data/',annot_tmp$file[rw_],'.fcs'), transformation = F)     # matrix of events in this well
@@ -249,7 +228,7 @@ if(HEATPLOT)
   
   if(!CORRECT)
   {
-    fl_ = paste0('../out/plates_heatmap_no_correction.pdf')
+    fl_ = paste0('../out/plates_heatmap_no_correction_cyto.pdf')
     pdf(file = fl_, width = width_, height = height_)
   
     plot_list = list()
@@ -345,7 +324,7 @@ if(HEATPLOT)
     
   }else
   {
-    fl_ = paste0('../out/plates_heatmap_correction.pdf')
+    fl_ = paste0('../out/plates_heatmap_correction_cyto.pdf')
     pdf(file = fl_, width = width_, height = height_)
   
     plot_list = list()

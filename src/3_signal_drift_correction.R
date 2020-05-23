@@ -7,7 +7,6 @@ args_ = commandArgs(trailingOnly = T)
 
 ###### Manual Debugging ########
 # args_ = c('-chnl', 'SSC-H,VL1-H,VL6-H,BL1-H,BL3-H,BL5-H,RL1-H',
-#           '--min-events','1000',
 #           '-correct', 'T',
 #           '--fit-plot', 'T',
 #           '--heat-plot', 'T')
@@ -20,10 +19,6 @@ INVALID = F
 chnls_ = args_[which(grepl(x = args_, pattern = '-chnl', fixed = F))+1]
 chnls_ = chnls_[!is.na(chnls_)]
 if(length(chnls_) == 0) { INVALID = T }
-
-min_events = as.integer(args_[which(grepl(x = args_, pattern = '^--min-events', fixed = F))+1])
-min_events = min_events[!is.na(min_events)]
-if(length(min_events) == 0) { INVALID = T }
 
 CORRECT = as.logical(args_[which(grepl(x = args_, pattern = '^-correct', fixed = F))+1])
 CORRECT = CORRECT[!is.na(CORRECT)]
@@ -40,9 +35,8 @@ if(length(HEATPLOT) == 0) { INVALID = T }
 if(INVALID)
 {
   message('\nInvalid call. Usage:\n',
-          'Rscript 2_signal_drift_correction.R \\\n',
+          'Rscript 3_signal_drift_correction.R \\\n',
           '-chnl \'SSC-H,VL1-H,VL6-H,BL1-H,BL3-H,BL5-H,RL1-H\' \\\n',
-          '--min-events 1000 \\\n',
           '-correct TRUE \\\n',
           '--fit-plot TRUE \\\n',
           '--heat-plot TRUE\n')
@@ -52,7 +46,6 @@ if(INVALID)
 chnls_ = strsplit(chnls_, split = '[,]')[[1]]
 message('You set:',
         '\nchannels to: ',paste0(chnls_,collapse = ', '),
-        '\nminimum events to: ',          min_events,
         '\nsignal drift correction to: ', CORRECT,
         '\nplotting regressed lines to: ',FITPLOT,
         '\nplotting plate heatmap to:',   HEATPLOT,'\n')
@@ -69,8 +62,6 @@ plates_ = sort(unique(annot_$plate))
 # reading fcs files of each plate
 
 MFI_mats = list()
-annot_ls = list()
-rows_ = cols_ = NULL
 for(plate_ in plates_)
 {
   # Reading fcs files ####
@@ -93,15 +84,7 @@ for(plate_ in plates_)
   }
   for(rw_ in 1:nrow(annot_tmp))
   {
-    fcs_dt_tmp = tryCatch(expr = read.FCS(filename = paste0('../data/',annot_tmp$file[rw_],'.fcs'), transformation = F),
-                          error = function(err_) { message(err_); return(new('flowFrame')) })     # some FCS files could be broken, flowCore throws exception
-    if( nrow(fcs_dt_tmp@exprs) < min_events)
-    {
-      warning(annot_tmp$file[rw_],' had fewer events than ',min_events,'; no correction was performed!')
-      write.FCS(x = fcs_dt_tmp, filename = paste0('../data/',annot_tmp$file[rw_],'_REMOVE.fcs'))
-      annot_tmp$file[rw_] = NA
-      next()
-    }
+    fcs_dt_tmp = read.FCS(filename = paste0('../data/',annot_tmp$file[rw_],'.fcs'), transformation = F)
 
     # computing offset from beginning of plate matrix
     i_ = which(rows_ == annot_tmp$row[rw_])
@@ -135,8 +118,6 @@ for(plate_ in plates_)
     if(FITPLOT) { pdf(file = paste0('../out/MFI_fit_plate',plate_,'.pdf')) }
     for(chnl_ in chnls_)
     {
-      # computing correction factors
-
       y_ = matrix(data = MFI_mat[[chnl_]], ncol = 1, nrow = length(MFI_mat[[chnl_]]), byrow = F)[,,drop = T]      # reading matrix columnwise
       x_ = 1:length(y_)                                                                                           # x_ then is offset of y_
 
@@ -160,7 +141,7 @@ for(plate_ in plates_)
 
       for(offset_ in 1:length(fcs_dt))                # fcs files in fcs_dt are already ordered according to their offset in MFI matrix (MFI_mat)
       {
-        if(is.null(fcs_dt[[offset_]])) { next() }     # if a fcs file is empty or has fewer cells than min_events, no correction is perfomed
+        if(is.null(fcs_dt[[offset_]])) { next() }     # some wells could be empty on the plate!
 
         # correcting fcs file
         fcs_dt[[offset_]]@exprs[,chnl_] = fcs_dt[[offset_]]@exprs[,chnl_]*(1-alpha_[offset_])
@@ -190,7 +171,7 @@ for(plate_ in plates_)
     }
     if(FITPLOT) { graphics.off() }
 
-    # writing intra-plate corrected fcs files temporarily in out
+    # writing intra-plate corrected fcs files temporarily in "out" directory
 
     for(offset_ in 1:length(fcs_dt))
     {
@@ -200,14 +181,7 @@ for(plate_ in plates_)
   }
   rm(fcs_dt)
   MFI_mats[[plate_]] = MFI_mat
-  annot_ls[[plate_]] = annot_tmp
 }
-
-# updating annotation file by removing uncorrected files
-
-annot_ls = do.call(what = rbind, args = annot_ls)
-annot_ = annot_ls[!is.na(annot_ls$file),]
-write.table(x = annot_, file = '../data/Annotations.txt',quote = F,sep = '\t',row.names = F,col.names = T)
 
 # STEP 3: Correcting for inter-plate batch effect ####
 
@@ -235,7 +209,9 @@ if(CORRECT)
   {
     # Reading fcs files ####
     
-    annot_tmp = annot_[annot_$plate %in% plate_,]     # annot_ has been updated to contain only corrected fcs files
+    annot_tmp = annot_[annot_$plate %in% plate_,]
+    rows_ = sort(unique(annot_tmp$row))
+    cols_ = sort(unique(annot_tmp$column))
     for(rw_ in 1:nrow(annot_tmp))
     {
       fcs_dt = read.FCS(filename = paste0('../data/',annot_tmp$file[rw_],'.fcs'), transformation = F)
