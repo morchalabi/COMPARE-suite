@@ -9,8 +9,8 @@ args_ = commandArgs(trailingOnly = T)
 
 ######## MANUAL DEBUG ONLY ########
 # args_ = c('-chnl','SSC-H,VL1-H,BL1-H,BL3-H,BL5-H,RL1-H,VL6-H')
-args_ = c('-chnl','BL5-H,RL1-H,VL6-H')
-# args_ = c('-chnl','Nd142,Nd144,Nd148,Sm154,Eu151,Gd158,Gd160,Dy162,Dy164,Er166,Er167,Er170,Yb171,Yb174,Yb176,Lu175')
+# args_ = c('-chnl','BL5-H,RL1-H,VL6-H')
+args_ = c('-chnl','Nd142,Nd144,Nd148,Sm154,Eu151,Gd158,Gd160,Dy162,Dy164,Er166,Er167,Er170,Yb171,Yb174,Yb176,Lu175')
 ##################################
 
 # STEP 0: Options control ####
@@ -24,7 +24,7 @@ if(length(chnls_) == 0) { INVALID = T }
 if(INVALID)
 {
   message('\nInvalid call. Usage:\n',
-          'Rscript 3_similarity_matrix_generator.R \\\n',
+          'Rscript 8_analyses.R \\\n',
           '-chnl \'SSC-H,VL1-H,VL6-H,BL1-H,BL3-H,BL5-H,RL1-H\n')
   quit(save = 'no')
 }
@@ -70,10 +70,10 @@ for(row_ in 1:nrow(smpl_tbl))
   wells_drugs$sim_vs_all[rowIndx] = smpl_tbl$sim_vs_all[row_]
   wells_drugs$sim_vs_control[rowIndx] = smpl_tbl$sim_vs_control[row_]
   wells_drugs$community[rowIndx] = smpl_tbl$community[row_]
-  wells_drugs$live_cells[rowIndx] = nrow(read.FCS(filename = paste0('../out/',smpl_tbl$sample[row_],'.fcs'),transformation = F)@exprs)
+  fcs_dt = read.FCS(filename = paste0('../data/',smpl_tbl$sample[row_],'.fcs'),transformation = F)
+  wells_drugs$live_cells[rowIndx] = if(length(as.double(fcs_dt@description$Toxicity)) != 0) { as.double(fcs_dt@description$Toxicity) }else{ nrow(fcs_dt@exprs) }
 }
 wells_drugs = wells_drugs[order(wells_drugs$drug, wells_drugs$concentration, decreasing = T),c("drug","concentration","control","sim_vs_control","community","sim_vs_all","live_cells","file")]
-wells_drugs$live_cells = round(wells_drugs$live_cells/max(wells_drugs$live_cells)*100,2)
 
 write.table(x = wells_drugs, file = paste0('../out/drugs_table','.tsv'), sep = '\t', col.names = T, quote = F, row.names = F)
 
@@ -228,7 +228,7 @@ for(row_ in 0:nrow(out_$cliques))
   dt_ = list()
   for(smpl_ in smpls_)
   {
-    tmp_ = read.FCS(filename = paste0('../out/',smpl_,'.fcs'), transformation = F)@exprs[,chnls_, drop = F]
+    tmp_ = read.FCS(filename = paste0('../data/',smpl_,'.fcs'), transformation = F)@exprs[,chnls_, drop = F]
     tmp_[which(tmp_ < 0 | is.na(tmp_) | is.nan(tmp_))] = 0
     tmp_ = log(tmp_+1)
     dt_[[smpl_]] = tmp_
