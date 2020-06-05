@@ -6,8 +6,9 @@ args_ = commandArgs(trailingOnly = T)
 
 ######## MANUAL DEBUG ONLY ########
 # args_ = c('-chnl','SSC-H,VL1-H,VL6-H,BL1-H,BL3-H,BL5-H,RL1-H',
-#           '-cpu', '3',
-#           '-merge', 'T')
+args_ = c('-chnl', 'Nd142,Nd144,Nd148,Sm154,Eu151,Gd158,Gd160,Dy162,Dy164,Er166,Er167,Er170,Yb171,Yb174,Yb176,Lu175',
+          '-cpu', '3',
+          '-merge', 'T')
 ##################################
 
 # STEP 0: Options control ####
@@ -66,11 +67,7 @@ for(row_ in 1:(length(fls_)-1))     # for each row of sim mat
     simMat[row_, ] = simMat[ , row_] = NA
     next()
   }
-
-  # step 1.2: transforming data ####
-
-  smpl1[ which(smpl1 < 0 | is.nan(smpl1) | is.na(smpl1)) ] = 0      # to avoid confounding observations, negative channel values are assigned 0
-  smpl1 = log(smpl1+1)                                              # FCS data are logarithmically distributed where non-positive values are always zeor even if there is a signal drift
+  smpl1 = smpl1[which(!apply(X = smpl1, MARGIN = 1, FUN = max) <= 0),]      # cell non-positive in all channel are removed
 
   myfunc =  function(col_, fls_, smpl1, row_, chnls_, merge_)
             {
@@ -82,11 +79,7 @@ for(row_ in 1:(length(fls_)-1))     # for each row of sim mat
               {
                 return(list(row = row_, col = col_, val = NA))
               }
-
-              # step 1.4: transforming data ####
-
-              smpl2[ which(smpl2 < 0 | is.nan(smpl2) | is.na(smpl2)) ] = 0
-              smpl2 = log(smpl2+1)
+              smpl2 = smpl2[which(!apply(X = smpl2, MARGIN = 1, FUN = max) <= 0),]
 
               # Step 1.5: measuring similarity
 
