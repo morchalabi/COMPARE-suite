@@ -6,9 +6,8 @@ args_ = commandArgs(trailingOnly = T)
 
 ######## MANUAL DEBUG ONLY ########
 # args_ = c('-chnl','SSC-H,VL1-H,VL6-H,BL1-H,BL3-H,BL5-H,RL1-H',
-args_ = c('-chnl', 'Nd142,Nd144,Nd148,Sm154,Eu151,Gd158,Gd160,Dy162,Dy164,Er166,Er167,Er170,Yb171,Yb174,Yb176,Lu175',
-          '-cpu', '3',
-          '-merge', 'T')
+          # '-cpu', '3',
+          # '-merge', 'T')
 ##################################
 
 # STEP 0: Options control ####
