@@ -67,7 +67,7 @@ for(row_ in 1:(length(fls_)-1))     # for each row of sim mat
     next()
   }
   smpl1[ which(smpl1 < 0 | is.nan(smpl1) | is.na(smpl1)) ] = 0
-  smpl1 = smpl1[which(!apply(X = smpl1, MARGIN = 1, FUN = max) %in% 0),]      # cell zero in all channels are removed
+  smpl1 = smpl1[which(!apply(X = smpl1, MARGIN = 1, FUN = max) %in% 0),]      # cells zero in all channels are removed
   smpl1 = log(smpl1 - min(smpl1) + 1)
 
   myfunc =  function(col_, fls_, smpl1, row_, chnls_, merge_)
