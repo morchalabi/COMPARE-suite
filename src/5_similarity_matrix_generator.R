@@ -7,7 +7,7 @@ args_ = commandArgs(trailingOnly = T)
 ######## MANUAL DEBUG ONLY ########
 # args_ = c('-chnl','SSC-H,VL1-H,VL6-H,BL1-H,BL3-H,BL5-H,RL1-H',
           # '-cpu', '3',
-          # '-merge', 'T')
+          # '-n', '4')
 ##################################
 
 # STEP 0: Options control ####
@@ -22,16 +22,16 @@ cor_ = as.integer(args_[which(grepl(x = args_, pattern = '^-cpu', fixed = F))+1]
 cor_ = cor_[!is.na(cor_)]
 if(length(cor_) == 0) { INVALID = T }
 
-merge_ = as.logical(args_[which(grepl(x = args_, pattern = '^-merge', fixed = F))+1])
-merge_ = merge_[!is.na(merge_)]
-if(length(merge_) == 0) { INVALID = T }
+n_ = as.integer(args_[which(grepl(x = args_, pattern = '^-n', fixed = F))+1])
+n_ = n_[!is.na(n_)]
+if(length(n_) == 0) { INVALID = T }
 
 if(INVALID)
 {
   message('\nInvalid call. Usage:\n',
           'Rscript 5_similarity_matrix_generator.R \\\n',
           '-chnl \'SSC-H,VL1-H,VL6-H,BL1-H,BL3-H,BL5-H,RL1-H\' \\\n',
-          '-merge TRUE \\\n',
+          '-n 4 \\\n',
           '-cpu 3\n')
   quit(save = 'no')
 }
@@ -39,7 +39,7 @@ if(INVALID)
 chnls_ = strsplit(chnls_, split = '[,]')[[1]]
 message('You set:',
         '\nchannels to: ', paste0(chnls_,collapse = ', '),
-        '\nmerge to: ',    merge_,
+        '\nn_ to: ',       n_,
         '\nCPU to: ',      cor_,'\n')
 
 options(nwarnings = 10000)      # shows all warnings (default is last 50)
@@ -86,7 +86,7 @@ for(row_ in 1:(length(fls_)-1))     # for each row of sim mat
 
               # Step 1.5: measuring similarity
 
-              simScore_ = compaRe::compare(smpl1 = smpl1, smpl2 = smpl2, merge_ = merge_)
+              simScore_ = compaRe::compare(smpl1 = smpl1, smpl2 = smpl2, n_ = n_)
 
               return(list(row = row_, col = col_, val = simScore_))
             }
