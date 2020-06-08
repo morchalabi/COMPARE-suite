@@ -70,7 +70,7 @@ for(row_ in 1:(length(fls_)-1))     # for each row of sim mat
   smpl1 = smpl1[which(!apply(X = smpl1, MARGIN = 1, FUN = max) %in% 0),]      # cells zero in all channels are removed
   smpl1 = log(smpl1 - min(smpl1) + 1)
 
-  myfunc =  function(col_, fls_, smpl1, row_, chnls_, merge_)
+  myfunc =  function(col_, fls_, smpl1, row_, chnls_, n_)
             {
               # step 1.3: reading in files ####
 
@@ -91,7 +91,7 @@ for(row_ in 1:(length(fls_)-1))     # for each row of sim mat
               return(list(row = row_, col = col_, val = simScore_))
             }
   cl_ = makeCluster(getOption('mc.cores', cor_))
-  simMat_ls = parLapply(X = (row_+1):length(fls_), fun = myfunc, cl = cl_, fls_, smpl1, row_, chnls_, merge_)
+  simMat_ls = parLapply(X = (row_+1):length(fls_), fun = myfunc, cl = cl_, fls_, smpl1, row_, chnls_, n_)
   stopCluster(cl_)
 
   for(elm_ in simMat_ls) { simMat[ elm_$row, elm_$col ] = simMat[ elm_$col, elm_$row ] = elm_$val }
