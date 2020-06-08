@@ -6,7 +6,7 @@ require(ggplot2)
 args_ = commandArgs(trailingOnly = T)
 
 ###### Manual Debugging ########
-# args_ = c('-correct', 'T',
+#           '-correct', 'T',
 #           '--fit-plot', 'T',
 #           '--heat-plot', 'T')
 ################################
@@ -88,6 +88,8 @@ for(plate_ in plates_)
   {
     message('intra-plate correction of plate #',plate_,':')
 
+    # step 2.1: computing intra-plate correction coefficients of current plate!
+
     y_ = matrix(data = toxicity_mat, ncol = 1, nrow = length(toxicity_mat), byrow = F)[,,drop = T]      # reading matrix columnwise
     x_ = 1:length(y_)                                                                                   # x_ then is offset of y_
 
@@ -103,12 +105,7 @@ for(plate_ in plates_)
 
     fit_ = lm(data = data.frame(offset = 1:length(y_tmp), live_cells = y_tmp), formula = live_cells~offset)
     a_ = fit_$coefficients["offset"]      # slope
-    if(a_ <= 0)     # if slope is non-positive, no correction is carried out
-    {
-      warning(paste0('Slope for plate #',plate_,' was negative, no intra-plate correction is performed!'))
-      toxicity_mats[[plate_]] = toxicity_mat
-      next()
-    }
+    if(a_ <= 0) { warning(paste0('Slope for plate #',plate_,' was negative, no intra-plate correction is performed!')); next() }
     b_ = fit_$coefficients["(Intercept)"]
     alpha_ = (a_*x_)/(a_*x_ + b_)         # correction factors
 
@@ -133,15 +130,13 @@ for(plate_ in plates_)
       
       # plotting uncorrected toxicities
 
-      plot(x = x_, y = y_, col = 'red', main = 'Uncorrected', xlab = 'Pseudo-time', ylab = 'Live cells',
-           ylim = range(y_), font = 2, font.lab = 2, pch = 20, cex = 1, cex.lab = 1.4, cex.axis = 1.5)
+      plot(x = x_, y = y_, col = 'red', main = 'Uncorrected', xlab = 'Pseudo-time', ylab = 'Toxicity', ylim = range(y_), font = 2, font.lab = 2, pch = 20, cex = 1, cex.lab = 1.5, cex.axis = 1.5)
       abline(a = b_, b = a_, col = 'blue')
 
       # plotting corrected toxicities
 
       y_ = matrix(data = toxicity_mat, ncol = 1, nrow = length(toxicity_mat), byrow = F)[,,drop = T]      # corrected toxicities
-      plot(x = x_, y = y_, col = 'red', main = 'Corrected', xlab = 'Pseudo-time', ylab = 'Live cells',
-           ylim = range(y_), font = 2, font.lab = 2, pch = 20, cex = 1, cex.lab = 1.4, cex.axis = 1.5)
+      plot(x = x_, y = y_, col = 'red', main = 'Corrected', xlab = 'Pseudo-time', ylab = 'Toxicity', ylim = range(y_), font = 2, font.lab = 2, pch = 20, cex = 1, cex.lab = 1.5, cex.axis = 1.5)
       abline(h = b_, col = 'blue')
       
       graphics.off()
@@ -213,7 +208,7 @@ if(CORRECT)
            theme(axis.line = element_line(color = 'black'), panel.background = element_blank(), legend.key = element_rect(fill = NA),
                   text = element_text(face = 'bold',size = 20), plot.title = element_text(vjust = 0.5, hjust = 0.5), aspect.ratio = 1)+
            guides(color = guide_legend(override.aes = list(size = 5)))+
-           labs(x = 'Pseudo-time', y = expression(bold('Live cells ('%*%10^-4*')')), title = 'Inter-plate correction', color = 'Plate')+
+           labs(x = 'Pseudo-time', y= 'toxicity', title = 'Inter-plate toxicities', color = 'Plate')+
            geom_point(pch = 20, size = 2)+
            geom_hline(yintercept = new_intcpts/1e4, color = 'darkred')+
            scale_x_continuous(expand = c(0.01, 0.01)) + scale_y_continuous(expand = c(0.01, 0.01))

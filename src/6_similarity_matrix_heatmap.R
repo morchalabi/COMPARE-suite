@@ -2,7 +2,7 @@ require(pheatmap)
 
 # STEP 1: Reading in similarity matrix ####
 
-dt_mat = as.matrix(read.table(file = '../out/simMat.txt', header = T, as.is = T, check.names = F, sep = '\t', stringsAsFactors = F))
+dt_mat = as.matrix(read.table(file = '../out/simMat_sep.txt', header = T, as.is = T, check.names = F, sep = '\t', stringsAsFactors = F))
 
 # STEP 3: Plotting ####
 
@@ -11,7 +11,7 @@ for(mtd_ in c('mcquitty',"average","ward.D","ward.D2","single","complete","media
 {
   pheatmap(mat = dt_mat,
            cluster_cols = T,treeheight_col = 0,
-           cluster_rows = T,treeheight_row = 50,
+           cluster_rows = T,treeheight_row = 200,
            clustering_method = mtd_,
            show_rownames = T, cellheight = 20, fontsize_row = 20,
            show_colnames = T, cellwidth = 20, fontsize_col = 20,

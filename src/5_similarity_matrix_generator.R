@@ -66,7 +66,9 @@ for(row_ in 1:(length(fls_)-1))     # for each row of sim mat
     simMat[row_, ] = simMat[ , row_] = NA
     next()
   }
-  smpl1 = smpl1[which(!apply(X = smpl1, MARGIN = 1, FUN = max) <= 0),]      # cell non-positive in all channel are removed
+  smpl1[ which(smpl1 < 0 | is.nan(smpl1) | is.na(smpl1)) ] = 0
+  smpl1 = smpl1[which(!apply(X = smpl1, MARGIN = 1, FUN = max) %in% 0),]      # cell zero in all channels are removed
+  smpl1 = log(smpl1 - min(smpl1) + 1)
 
   myfunc =  function(col_, fls_, smpl1, row_, chnls_, merge_)
             {
@@ -78,7 +80,9 @@ for(row_ in 1:(length(fls_)-1))     # for each row of sim mat
               {
                 return(list(row = row_, col = col_, val = NA))
               }
-              smpl2 = smpl2[which(!apply(X = smpl2, MARGIN = 1, FUN = max) <= 0),]
+              smpl2[ which(smpl2 < 0 | is.nan(smpl2) | is.na(smpl2)) ] = 0
+              smpl2 = smpl2[which(!apply(X = smpl2, MARGIN = 1, FUN = max) %in% 0),]
+              smpl2 = log(smpl2 - min(smpl2) + 1)
 
               # Step 1.5: measuring similarity
 
