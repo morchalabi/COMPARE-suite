@@ -8,7 +8,9 @@ require(pheatmap)
 args_ = commandArgs(trailingOnly = T)
 
 ######## MANUAL DEBUG ONLY ########
+args_ = c('-chnl','BL5-H,RL1-H,VL6-H')
 # args_ = c('-chnl','SSC-H,VL1-H,BL1-H,BL3-H,BL5-H,RL1-H,VL6-H')
+# args_ = c('-chnl','Nd142,Nd144,Nd148,Sm154,Eu151,Gd158,Gd160,Dy162,Dy164,Er166,Er167,Er170,Yb171,Yb174,Yb176,Lu175')
 ##################################
 
 # STEP 0: Options control ####
@@ -35,11 +37,13 @@ options(scipen = 999)
 
 # STEP 1: Reading in files ####
 
-# reading in similarity matrix file
-simMat = as.matrix(read.table(file = '../out/simMat.txt', header = T, sep = '\t', row.names = 1, as.is = T, check.names = F))
-
 # reading in drug set annotation file
 wells_drugs = read.table(file = '../data/Annotations.txt', header = T, sep = '\t', as.is = T, check.names = T, na.strings = c('','NULL','NA'), stringsAsFactors = F)
+
+# reading in similarity matrix file
+simMat = as.matrix(read.table(file = '../out/simMat.txt', header = T, sep = '\t', row.names = 1, as.is = T, check.names = F))
+smpl_ids = which(rownames(simMat) %in% wells_drugs$file)      # which samples have been removed from Annotations file
+simMat = simMat[smpl_ids, smpl_ids]
 
 # STEP 2: Which samples are negative controls in simMat ####
 
@@ -50,11 +54,180 @@ controls_ids = paste(controls_ids, collapse = ',')
 # STEP 3: Extracting communities (dense regions) and cliques (clusters) ####
 message('Clustering')
 
-out_ = compaRe::clustering(simMat_ = simMat,
+clustering_ = function(simMat_ = NULL, controls_ = NULL, thresh_ = NULL, smpl_graph = TRUE, sim_graph = TRUE)
+{
+  require(igraph)     # if igraph pacakge is already installed
+  
+  output_ = list()    # output list
+  
+  # STEP 1: Checkpoint for controling input arguments ####
+  
+  # reading in similarity matrix
+  
+  if(is.null(simMat_))
+  {
+    message('\nError: simMat_ cannot be left empty!')
+    quit(save = 'no')
+  }
+  if( is.null(rownames(simMat_)) | is.null(colnames(simMat_)) )     # if similarity matrix has no row/column names
+  {
+    rownames(simMat_) = colnames(simMat_) = 1:nrow(simMat_)
+  }
+  
+  # checking controls
+  
+  controls_ = as.integer(strsplit(controls_,'[,]')[[1]])
+  if(is.null(controls_))
+  {
+    message('\nError: controls_ cannot be left empty!')
+    quit(save = 'no')
+  }
+  
+  # setting similarity cutoff
+  
+  if(is.null(thresh_))            # if thresh_ is not set by user, then it must be inferred from control samples
+  {
+    if(length(controls_) < 2)     # there must be at least 2 controls to infer similarity cutoff
+    {
+      message('\nError: for inferring similarity cutoff, there must be at least 2 control samples!')
+      quit(save = 'no')
+    }
+    
+    # finding threshold using maximum spanning tree
+    # it is equivalent to a for loop starting with min similarity in ascending order and
+    # stop when graph is not connected anymore using igraphh::is.connected()
+    
+    g_ = graph_from_adjacency_matrix(adjmatrix = -simMat_[controls_, controls_], mode = 'undirected',weighted = T, diag = F)      # graph with negative weights
+    g_ = mst(graph = g_)                                                                                                          # maximum spanning tree
+    # thresh_ = min(-E(g_)$weight)     # threshold is the maximum control similarity for which control graph remains a tree
+    thresh_ = 83.00
+  }
+  message('\nSimilarity threshold set to: ', thresh_)
+  
+  # chekig if smpl_graph is requested
+  
+  simMat_org = NULL
+  if(smpl_graph) { simMat_org = simMat_}
+  
+  # STEP 2: Identifying samples similar enough to controls ####
+  
+  smpls_ = rownames(simMat_)                           # sample IDs
+  dt_ = data.frame(sample = smpls_,                    # dt_ is the output table
+                   community = 0,                      # components/community (connected subgraphs)
+                   sim_vs_control = 100,                 # median similarity of each sample with controls
+                   sim_vs_all = rowMeans(simMat_),     # mean similarity of each sample with all samples including controls
+                   row.names = smpls_,
+                   stringsAsFactors = F)
+  mat_tmp = simMat_
+  diag(mat_tmp) = 0
+  simsVsCntrl = apply(X = mat_tmp[controls_,-controls_], MARGIN = 2, FUN = mean)     # similarity of a sample with controls
+  dt_[names(simsVsCntrl), "sim_vs_control"] = simsVsCntrl                 # updating output table with sim_vs_control values
+  
+  # updating control samples
+  
+  nonCtrls = which(dt_$sim_vs_control < thresh_)
+  if(length(nonCtrls) != 0)
+  {
+    simsVsCntrl = apply(X = simMat_[-nonCtrls, nonCtrls], MARGIN = 2, FUN = mean)     # updating similarities vs new controls
+    simMat_ = simMat_[nonCtrls, nonCtrls]
+  }
+  simMat_ = cbind(simMat_, Control = 100)
+  simMat_ = rbind(simMat_, Control = 100)
+  simMat_["Control", names(simsVsCntrl)] = simMat_[names(simsVsCntrl),"Control"] = simsVsCntrl
+  
+  # STEP 3: Identifying clusters (maximal cliques) ####
+  message('Identifying clusters')
+  
+  # step 3.1: finding communities; controls should be removed from graph before finding communities because
+  # if 2 non-control nodes form a triangle with control node, the entire triangle is reported as a cluster while the 2 non-controls are desired
+  
+  adj_mat = simMat_[-nrow(simMat_), -ncol(simMat_)]      # last row and column of dt_ is control node
+  adj_mat[ adj_mat < thresh_ ] = 0
+  g_ = graph_from_adjacency_matrix(adjmatrix = adj_mat, mode = 'undirected', diag = F, weighted = T)
+  comms_ = components(graph = g_)     # extracting conencted subgraphs (aka components/communities)
+  dt_[names(comms_$membership), "community"] = comms_$membership
+  
+  output_[['samples_table']] = dt_
+  
+  # step 3.2: xtracting mximal cliques from each identified community
+  
+  cliq_tbl = list()
+  j_ = 1      # cliques counter
+  for(comm in 1:comms_$no)
+  {
+    # step 3.2.1: extracting current community
+    
+    smpls_ = names(comms_$membership[comms_$membership %in% comm])                                              # samples in this community
+    adj_mat = simMat_[smpls_, smpls_, drop = F]                                                                  # adjacency matrix of current community considering sim threshold
+    adj_mat[adj_mat < thresh_] = 0
+    g_comm = graph_from_adjacency_matrix(adjmatrix = adj_mat, mode = 'undirected', diag = F, weighted = T)      # current community subgraph
+    cliques_ = max_cliques(graph = g_comm)                                                                      # maximal cliques (unextendible complete subgraphs)
+    
+    # step 3.2.2: replacing sample indices of cliques with sample IDs & writing to file
+    
+    for(clq_ in cliques_)
+    {
+      cliq_tbl[[j_]] = data.frame(Cliques = paste0(clq_$name,collapse = ','), Community = comm)
+      j_ = j_ + 1
+    }
+  }
+  output_[['cliques']] = do.call(rbind, cliq_tbl)
+  
+  # STEP 4: Sample graph ####
+  
+  if(smpl_graph)
+  {
+    message('Constructing samples graph')
+    
+    simMat_org[simMat_org < thresh_] = 0      # removing insignificant edges
+    g_ = graph_from_adjacency_matrix(adjmatrix = simMat_org, mode = 'undirected', diag = F, weighted = T)
+    
+    # assigning community number of each node
+    
+    V(g_)$comm = dt_[ V(g_)$name, "community" ]     # adding community attribute to vertices
+    
+    # marking edges control nodes
+    
+    edges_ = as_edgelist(g_)      # all edges in similarity graph after removing insignificant ones
+    E(g_)$intra_comm = FALSE      # adding intra-community edge attribute to each edge
+    inds_ = which(dt_[edges_[,1],"community"] == dt_[edges_[,2],"community"] &      # edges that connect nodes of the same community
+                    !dt_[edges_[,1],"community"] %in% 0)                              # except for control nodes
+    E(g_)$intra_comm[inds_] = TRUE
+    
+    output_[['samples_graph']] = g_
+  }
+  
+  # STEP 5: Similarity graph ####
+  
+  if(sim_graph)
+  {
+    message('Constructing similarity graph')
+    
+    # finding nearest (most similar and correlated) node to each node taking control node as root
+    
+    diag(simMat_) = 0                                 # to avoid self-loops
+    simMat_['Control',] = 0
+    for(row_ in 1:(nrow(simMat_)-1))                  # last row/column is control; control node should not point to other nodes
+    {
+      simMat_[row_, which(simMat_[row_,] < max(simMat_[row_,]))] = 0                                                   # removing all edges from node_A except for nn_ -> node_A
+    }
+    g_ = graph_from_adjacency_matrix(adjmatrix = simMat_, mode = 'directed', weighted = T)
+    
+    output_[['similarity_graph']] = g_
+  }
+  
+  return(output_)
+}
+out_ = clustering_(simMat_ = simMat,
                            controls_ = controls_ids,
                            thresh_ = NULL,
                            smpl_graph = T,
                            sim_graph = T)
+# out_ = compaRe::clustering(simMat_ = simMat,
+#                            controls_ = controls_ids,
+#                            thresh_ = NULL,
+#                            smpl_graph = T,
+#                            sim_graph = T)
 
 # STEP 4: Adding things to drug tables ####
 message('Adding information to drug tables')
@@ -68,7 +241,7 @@ for(row_ in 1:nrow(smpl_tbl))
   wells_drugs$sim_vs_all[rowIndx] = smpl_tbl$sim_vs_all[row_]
   wells_drugs$sim_vs_control[rowIndx] = smpl_tbl$sim_vs_control[row_]
   wells_drugs$community[rowIndx] = smpl_tbl$community[row_]
-  wells_drugs$live_cells[rowIndx] = nrow(read.FCS(filename = paste0('../out/',smpl_tbl$sample[row_],'.fcs'),transformation = F)@exprs)
+  # wells_drugs$live_cells[rowIndx] = nrow(read.FCS(filename = paste0('../data/',smpl_tbl$sample[row_],'.fcs'),transformation = F)@exprs)
 }
 wells_drugs = wells_drugs[order(wells_drugs$drug, wells_drugs$concentration, decreasing = T),c("drug","concentration","control","sim_vs_control","community","sim_vs_all","live_cells","file")]
 wells_drugs$live_cells = round(wells_drugs$live_cells/max(wells_drugs$live_cells)*100,2)
@@ -94,7 +267,7 @@ comms_ = unique(V(g_)$comm)
 for(comm_ in comms_)
 {
   if(comm_ ==  0) { next() }
-
+  
   inds_ = which(V(g_)$comm %in% comm_)
   if(1 < length(inds_))
   {

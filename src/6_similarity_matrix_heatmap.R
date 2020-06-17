@@ -2,7 +2,7 @@ require(pheatmap)
 
 # STEP 1: Reading in similarity matrix ####
 
-dt_mat = as.matrix(read.table(file = '../out/simMat_sep.txt', header = T, as.is = T, check.names = F, sep = '\t', stringsAsFactors = F))
+dt_mat = as.matrix(read.table(file = '../out/simMat_PhenoGraph_70.txt', header = T, as.is = T, check.names = F, sep = '\t', stringsAsFactors = F))
 
 # STEP 3: Plotting ####
 
