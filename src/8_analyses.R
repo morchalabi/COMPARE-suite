@@ -307,8 +307,8 @@ for(chnl_ in chnls_)
         geom_text_repel(box.padding = unit(0.9, "lines"),                           # handle of control label
                         label = c('Control',rep('',nrow(umap_)-1)),                 # control label
                         color = 'darkgreen',                                        # color of control label
-                        size = 7,show.legend = F, fontface = 2)+                   # miscelaneous
-        scale_color_gradientn(colours = c('red','orange','yellow','blue','black'),
+                        size = 7,show.legend = F, fontface = 2)+                    # miscelaneous
+        scale_color_gradientn(colours =  c("#0571B0","#92C5DE","yellow","#F4A582","#CA0020"),
                               limits=c(min(centroids_[,chnl_]),max(centroids_[,chnl_])),
                               breaks = round(seq(min(centroids_[,chnl_])+0.01,max(centroids_[,chnl_])-0.01, length.out = 3),2) )
   plot(p_)
