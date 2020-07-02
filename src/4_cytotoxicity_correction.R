@@ -6,7 +6,7 @@ require(ggplot2)
 args_ = commandArgs(trailingOnly = T)
 
 ###### Manual Debugging ########
-#           '-correct', 'T',
+# args_ = c('-correct', 'T',
 #           '--fit-plot', 'T',
 #           '--heat-plot', 'T')
 ################################
@@ -30,7 +30,7 @@ if(length(HEATPLOT) == 0) { INVALID = T }
 if(INVALID)
 {
   message('\nInvalid call. Usage:\n',
-          'Rscript 4_cytotoxicity_correction.R \\\n',
+          'Rscript 4_cytoviability_correction.R \\\n',
           '-correct TRUE \\\n',
           '--fit-plot TRUE \\\n',
           '--heat-plot TRUE\n')
@@ -38,13 +38,13 @@ if(INVALID)
 }
 
 message('You set:',
-        '\ncytotoxicity drift correction to: ', CORRECT,
+        '\ncytoviability drift correction to: ', CORRECT,
         '\nplotting regressed lines to: ',FITPLOT,
         '\nplotting plate heatmap to:',   HEATPLOT,'\n')
 
 options(nwarnings = 10000)      # shows all warnings (default is last 50)
 
-# STEP 1: Computing toxicities ####
+# STEP 1: Computing viabilities ####
 
 # reading in annotation file
 
@@ -53,7 +53,7 @@ plates_ = sort(unique(annot_$plate))
 
 # reading fcs files of each plate
 
-toxicity_mats = list()
+viability_mats = list()
 for(plate_ in plates_)
 {
   # Reading fcs files ####
@@ -66,9 +66,9 @@ for(plate_ in plates_)
   
   fcs_flNms = list()
   
-  toxicity_mat = matrix(data = 0, nrow = length(rows_), ncol = length(cols_))
-  rownames(toxicity_mat) = rows_
-  colnames(toxicity_mat) = cols_
+  viability_mat = matrix(data = 0, nrow = length(rows_), ncol = length(cols_))
+  rownames(viability_mat) = rows_
+  colnames(viability_mat) = cols_
   for(rw_ in 1:nrow(annot_tmp))
   {
     fcs_dt = read.FCS(filename = paste0('../data/',annot_tmp$file[rw_],'.fcs'), transformation = F)
@@ -78,7 +78,7 @@ for(plate_ in plates_)
     i_ = which(rows_ == annot_tmp$row[rw_])
     j_ = which(cols_ == annot_tmp$column[rw_])
     offset_ = m_*(j_-1)+i_                          # column-wise offset
-    toxicity_mat[i_,j_] = nrow(fcs_dt@exprs)        # computing toxicities
+    viability_mat[i_,j_] = nrow(fcs_dt@exprs)       # computing viabilities
     fcs_flNms[[offset_]] = annot_tmp$file[rw_]      # fcs file name in this offset of plate
   }
 
@@ -90,8 +90,8 @@ for(plate_ in plates_)
 
     # step 2.1: computing intra-plate correction coefficients of current plate!
 
-    y_ = matrix(data = toxicity_mat, ncol = 1, nrow = length(toxicity_mat), byrow = F)[,,drop = T]      # reading matrix columnwise
-    x_ = 1:length(y_)                                                                                   # x_ then is offset of y_
+    y_ = matrix(data = viability_mat, ncol = 1, nrow = length(viability_mat), byrow = F)[,,drop = T]      # reading matrix columnwise
+    x_ = 1:length(y_)                                                                                     # x_ then is offset of y_
 
     # removing outliers
 
@@ -105,44 +105,62 @@ for(plate_ in plates_)
 
     fit_ = lm(data = data.frame(offset = 1:length(y_tmp), live_cells = y_tmp), formula = live_cells~offset)
     a_ = fit_$coefficients["offset"]      # slope
-    if(a_ <= 0) { warning(paste0('Slope for plate #',plate_,' was negative, no intra-plate correction is performed!')); next() }
+    if(a_ <= 0) { warning(paste0('Slope for plate #',plate_,' was negative, no intra-plate correction is performed!')); viability_mats[[plate_]] = viability_mat; next() }
     b_ = fit_$coefficients["(Intercept)"]
     alpha_ = (a_*x_)/(a_*x_ + b_)         # correction factors
 
     # step 2.2: correction
 
-    for(offset_ in 1:length(fcs_flNms))      # fcs files in fcs_flNms are already ordered by their offset in toxicity matrix (toxicity_mat)
+    for(offset_ in 1:length(fcs_flNms))      # fcs files in fcs_flNms are already ordered by their offset in viability matrix (viability_mat)
     {
       if(is.null(fcs_flNms[[offset_]])) { next() }
 
-      # correcting toxicities of current fcs
+      # correcting viabilities of current fcs
       p_ = offset_/m_
       i_ = round((p_-ceiling(p_)+1)*m_)     # round is added because arithmatic on integer and double is not exact in R
       j_ = round(ceiling(p_))
-      toxicity_mat[i_,j_] = toxicity_mat[i_,j_]*(1-alpha_[offset_])
-    }
-
-    # step 2.3: plotting fit lines if requested
-
-    if(FITPLOT)
-    {
-      pdf(file = paste0('../out/toxicity_fit_plate',plate_,'.pdf'))
-      
-      # plotting uncorrected toxicities
-
-      plot(x = x_, y = y_, col = 'red', main = 'Uncorrected', xlab = 'Pseudo-time', ylab = 'Toxicity', ylim = range(y_), font = 2, font.lab = 2, pch = 20, cex = 1, cex.lab = 1.5, cex.axis = 1.5)
-      abline(a = b_, b = a_, col = 'blue')
-
-      # plotting corrected toxicities
-
-      y_ = matrix(data = toxicity_mat, ncol = 1, nrow = length(toxicity_mat), byrow = F)[,,drop = T]      # corrected toxicities
-      plot(x = x_, y = y_, col = 'red', main = 'Corrected', xlab = 'Pseudo-time', ylab = 'Toxicity', ylim = range(y_), font = 2, font.lab = 2, pch = 20, cex = 1, cex.lab = 1.5, cex.axis = 1.5)
-      abline(h = b_, col = 'blue')
-      
-      graphics.off()
+      viability_mat[i_,j_] = viability_mat[i_,j_]*(1-alpha_[offset_])
     }
   }
-  toxicity_mats[[plate_]] = toxicity_mat
+  
+  viability_mats[[plate_]] = viability_mat
+}
+
+if(FITPLOT)
+{
+  if(CORRECT) { pdf(file = paste0('../out/viability_fit_intra-plate_corrected.pdf')) }else{ pdf(file = paste0('../out/viability_fit_intra-plate_no_correction.pdf')) }
+  
+  for(plate_ in plates_)
+  {
+    y_ = matrix(data = viability_mats[[plate_]], ncol = 1, nrow = length(viability_mats[[plate_]]), byrow = F)[,,drop = T]/1e4      # corrected viabilities
+    x_ = 1:length(y_)                                                                                                   # x_ then is offset of y_
+    
+    # removing outliers
+    
+    IQR_ = IQR(y_)
+    quartiles_ = quantile(y_, probs = c(.25, .75))
+    lowWhisker_ = max(min(y_), quartiles_[1] - IQR_*1.5)
+    upWhisker_ = min(max(y_), quartiles_[2] + IQR_*1.5)
+    y_tmp = y_[lowWhisker_ < y_ & y_ < upWhisker_]
+    
+    # fitting regressed line
+    
+    fit_ = lm(data = data.frame(offset = 1:length(y_tmp), live_cells = y_tmp), formula = live_cells~offset)
+    a_ = if(CORRECT) { 0 }else{ fit_$coefficients["offset"] }     # slope
+    b_ = fit_$coefficients["(Intercept)"]
+    
+    p_ = ggplot(data = data.frame(x = x_, y = y_, Plate = plate_), aes(x = x_, y = y_, color = as.factor(Plate)))+
+            theme(axis.line = element_line(color = 'black'), panel.background = element_blank(), legend.key = element_rect(fill = NA),
+                  text = element_text(face = 'bold',size = 20), plot.title = element_text(vjust = 0.5, hjust = 0.5), aspect.ratio = 1)+
+            guides(color = guide_legend(override.aes = list(size = 5)))+
+            labs(x = 'Pseudo-time', y= expression('Live cells ('%*%10^-4*')'), color = 'Plate')+
+            geom_point(pch = 20, size = 2)+
+            scale_color_manual(values = 'red')+
+            geom_abline(intercept = b_, slope = a_, color = 'darkblue')+
+            scale_x_continuous(expand = c(0.01, 0.01)) + scale_y_continuous(expand = c(0.01, 0.01))
+    plot(p_)
+  }
+  graphics.off()
 }
 
 # STEP 3: Correcting for inter-plate batch effect ####
@@ -153,7 +171,7 @@ if(CORRECT)
   
   # computing inter-plate correction coefficient
   old_intcpts = double()
-  for(plate_ in plates_) { old_intcpts[plate_] = median(toxicity_mats[[plate_]]) }
+  for(plate_ in plates_) { old_intcpts[plate_] = median(viability_mats[[plate_]]) }
   new_intcpts = median(old_intcpts)
   
   for(plate_ in plates_)
@@ -177,44 +195,44 @@ if(CORRECT)
       # computing correction factors
       alpha_ = (new_intcpts - old_intcpts[plate_])/old_intcpts[plate_]     # correction factors (fold changes)
 
-      # correcting toxicities of currect fcs
-      toxicity_mats[[plate_]][i_,j_] = toxicity_mats[[plate_]][i_,j_]*(1+alpha_)
+      # correcting viabilities of currect fcs
+      viability_mats[[plate_]][i_,j_] = viability_mats[[plate_]][i_,j_]*(1+alpha_)
 
       # correcting fcs file
-      keyword(fcs_dt) = list(Toxicity = toxicity_mats[[plate_]][i_,j_])
+      keyword(fcs_dt) = list(viability = viability_mats[[plate_]][i_,j_])
       
       # writing corrected fcs files
       write.FCS(x = fcs_dt, filename = paste0('../data/',annot_tmp$file[rw_],'.fcs'))      # matrix of events in this well
     }
     
-    # Writing toxicity matrices ####
-    write.table(x = toxicity_mats[[plate_]], file = paste0('../out/toxicity_mat_P',plate_,'.txt'), quote = F, sep = '\t', row.names = T, col.names = T)
+    # Writing viability matrices ####
+    write.table(x = viability_mats[[plate_]], file = paste0('../out/viability_mat_P',plate_,'.txt'), quote = F, sep = '\t', row.names = T, col.names = T)
   }
-  
-  # plotting fit lines ####
-  
-  if(FITPLOT)
+}
+
+# plotting fit lines ####
+
+if(FITPLOT)
+{
+  dt_ = list()
+  for(plate_ in plates_)
   {
-    dt_ = list()
-    for(plate_ in plates_)
-    {
-      tmp = matrix(data = toxicity_mats[[plate_]], ncol = 1, nrow = length(toxicity_mats[[plate_]]), byrow = F)
-      dt_[[plate_]] = data.frame(toxicity = tmp, plate = as.character(plate_), stringsAsFactors = T)
-    }
-    dt_ = do.call(what = rbind, args = dt_)
-    
-    pdf(file = '../out/toxicity_fit_all_plates.pdf')
-    p_ = ggplot(data = dt_, aes(x = 1:nrow(dt_), y = toxicity/1e4, color = plate))+
-           theme(axis.line = element_line(color = 'black'), panel.background = element_blank(), legend.key = element_rect(fill = NA),
-                  text = element_text(face = 'bold',size = 20), plot.title = element_text(vjust = 0.5, hjust = 0.5), aspect.ratio = 1)+
-           guides(color = guide_legend(override.aes = list(size = 5)))+
-           labs(x = 'Pseudo-time', y= 'toxicity', title = 'Inter-plate toxicities', color = 'Plate')+
-           geom_point(pch = 20, size = 2)+
-           geom_hline(yintercept = new_intcpts/1e4, color = 'darkred')+
-           scale_x_continuous(expand = c(0.01, 0.01)) + scale_y_continuous(expand = c(0.01, 0.01))
-    plot(p_)
-    graphics.off()
+    tmp = matrix(data = viability_mats[[plate_]], ncol = 1, nrow = length(viability_mats[[plate_]]), byrow = F)[,,drop = T]/1e4
+    dt_[[plate_]] = data.frame(viability = tmp, plate = as.character(plate_), stringsAsFactors = T)
   }
+  dt_ = do.call(what = rbind, args = dt_)
+  
+  if(CORRECT) { pdf(file = '../out/viability_fit_inter-plate_corrected.pdf') }else{ pdf(file = '../out/viability_fit_inter-plate_no_correction.pdf') }
+  p_ = ggplot(data = dt_, aes(x = 1:nrow(dt_), y = viability, color = plate))+
+          theme(axis.line = element_line(color = 'black'), panel.background = element_blank(), legend.key = element_rect(fill = NA),
+                text = element_text(face = 'bold',size = 20), plot.title = element_text(vjust = 0.5, hjust = 0.5), aspect.ratio = 1)+
+          guides(color = guide_legend(override.aes = list(size = 5)))+
+          labs(x = 'Pseudo-time', y= expression('Live cells ('%*%10^-4*')'), color = 'Plate')+
+          geom_point(pch = 20, size = 2)+
+          geom_hline(yintercept = median(dt_$viability), color = 'darkred')+
+          scale_x_continuous(expand = c(0.01, 0.01)) + scale_y_continuous(expand = c(0.01, 0.01))
+  plot(p_)
+  graphics.off()
 }
 
 # STEP 4: Plotting plate heatmaps ####
@@ -237,13 +255,13 @@ if(HEATPLOT)
     max_ = 0
     for(plate_ in 1:numOfPlates)
     {
-      max_tmp = max(toxicity_mats[[plate_]]/1e4)     # palte plate_ showing toxicity
+      max_tmp = max(viability_mats[[plate_]]/1e4)     # palte plate_ showing viability
       if(max_ < max_tmp) { max_ = max_tmp }
     }
     
     for(plate_ in 1:numOfPlates)
     {
-      dt_mat = toxicity_mats[[plate_]]/1e4      # palte plate_ showing toxicity
+      dt_mat = viability_mats[[plate_]]/1e4      # palte plate_ showing viability
       dt_mat = rbind(dt_mat, MAX = c(max_, rep(0,ncol(dt_mat)-1)))
       
       dt_ = unique(as.numeric(dt_mat))
@@ -334,7 +352,7 @@ if(HEATPLOT)
     dt_ = NULL
     for(plate_ in 1:numOfPlates)
     {
-      dt_ = c(dt_, as.numeric(toxicity_mats[[plate_]]/1e4))     # palte plate_ showing toxicity
+      dt_ = c(dt_, as.numeric(viability_mats[[plate_]]/1e4))     # palte plate_ showing viability
     }
     max_ = max(dt_)
     
@@ -402,7 +420,7 @@ if(HEATPLOT)
       LEGEND_SHOW = F
       if(plate_ == 1) { LEGEND_SHOW = T }
       
-      dt_mat = toxicity_mats[[plate_]]/1e4      # palte plate_ showing toxicity
+      dt_mat = viability_mats[[plate_]]/1e4      # palte plate_ showing viability
       dt_mat = rbind(dt_mat, MAX = c(max_, rep(0,ncol(dt_mat)-1)))
       
       p_ = pheatmap(mat = dt_mat,

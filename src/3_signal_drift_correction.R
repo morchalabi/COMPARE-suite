@@ -115,7 +115,6 @@ for(plate_ in plates_)
 
     # computing intra-plate correction coefficients for each channels of current plate!
 
-    if(FITPLOT) { pdf(file = paste0('../out/MFI_fit_plate',plate_,'.pdf')) }
     for(chnl_ in chnls_)
     {
       y_ = matrix(data = MFI_mat[[chnl_]], ncol = 1, nrow = length(MFI_mat[[chnl_]]), byrow = F)[,,drop = T]      # reading matrix columnwise
@@ -152,26 +151,9 @@ for(plate_ in plates_)
         j_ = round(ceiling(p_))
         MFI_mat[[chnl_]][i_,j_] = MFI_mat[[chnl_]][i_,j_]*(1-alpha_[offset_])
       }
-
-      # plotting fit lines
-
-      if(FITPLOT)
-      {
-        # plotting uncorrected MFIs
-
-        plot(x = x_, y = y_, col = 'red', main = chnl_, xlab = 'Pseudo-time', ylab = 'MFI', ylim = range(y_), font = 2, font.lab = 2, pch = 20, cex = 1, cex.lab = 1.5, cex.axis = 1.5)
-        abline(a = b_, b = a_, col = 'blue')
-
-        # plotting corrected MFIs
-
-        y_ = matrix(data = MFI_mat[[chnl_]], ncol = 1, nrow = length(MFI_mat[[chnl_]]), byrow = F)[,,drop = T]      # corrected MFIs
-        plot(x = x_, y = y_, col = 'red', main = paste0(chnl_,' (corrected)'), xlab = 'Pseudo-time', ylab = 'MFI', ylim = range(y_), font = 2, font.lab = 2, pch = 20, cex = 1, cex.lab = 1.5, cex.axis = 1.5)
-        abline(h = b_, col = 'blue')
-      }
     }
-    if(FITPLOT) { graphics.off() }
 
-    # writing intra-plate corrected fcs files temporarily in "out" directory
+    # writing intra-plate corrected fcs files temporarily in "data" directory
 
     for(offset_ in 1:length(fcs_dt))
     {
@@ -181,6 +163,45 @@ for(plate_ in plates_)
   }
   rm(fcs_dt)
   MFI_mats[[plate_]] = MFI_mat
+}
+
+if(FITPLOT)
+{
+  if(CORRECT) { pdf(file = '../out/MFI_fit_intra-plate_corrected.pdf') }else{ pdf(file = '../out/MFI_fit_intra-plate_no_correction.pdf') }
+  
+  for(plate_ in plates_)
+  {
+    for (chnl_ in chnls_)
+    {
+      y_ = matrix(data = MFI_mats[[plate_]][[chnl_]], ncol = 1, nrow = length(MFI_mats[[plate_]][[chnl_]]), byrow = F)[,,drop = T]/1e4
+      x_ = 1:length(y_)                                                                                           # x_ then is offset of y_
+      
+      # removing outliers
+      IQR_ = IQR(y_)
+      quartiles_ = quantile(y_, probs = c(.25, .75))
+      lowWhisker_ = max(min(y_), quartiles_[1] - IQR_*1.5)
+      upWhisker_ = min(max(y_), quartiles_[2] + IQR_*1.5)
+      y_tmp = y_[lowWhisker_ < y_ & y_ < upWhisker_]
+      
+      # fitting regressed line
+      
+      fit_ = lm(data = data.frame(offset = 1:length(y_tmp), chnl = y_tmp), formula = chnl~offset)
+      a_ = if(CORRECT) { 0 }else { fit_$coefficients["offset"] }     # slope
+      b_ = fit_$coefficients["(Intercept)"]
+
+      p_ = ggplot(data = data.frame(x = x_, y = y_, Plate = plate_), aes(x = x_, y = y_, color = as.factor(Plate)))+
+              theme(axis.line = element_line(color = 'black'), panel.background = element_blank(), legend.key = element_rect(fill = NA),
+                    text = element_text(face = 'bold',size = 20), plot.title = element_text(vjust = 0.5, hjust = 0.5), aspect.ratio = 1)+
+              guides(color = guide_legend(override.aes = list(size = 5)))+
+              labs(x = 'Pseudo-time', y = expression('MFI ('%*%10^-4*')'), title = chnl_, color = 'Plate')+
+              geom_point(pch = 20, size = 2)+
+              scale_color_manual(values = 'red')+
+              geom_abline(intercept = b_, slope = a_, color = 'darkblue')+
+              scale_x_continuous(expand = c(0.01, 0.01)) + scale_y_continuous(expand = c(0.01, 0.01))
+      plot(p_)
+    }
+  }
+  graphics.off()
 }
 
 # STEP 3: Correcting for inter-plate batch effect ####
@@ -246,40 +267,40 @@ if(CORRECT)
       write.table(x = MFI_mats[[plate_]][[chnl_]], file = paste0('../out/MFI_mat_P',plate_,chnl_,'.txt'), quote = F, sep = '\t', row.names = T, col.names = T)
     }
   }
-  
-  # plotting fit lines ####
-  
-  if(FITPLOT)
+}
+
+# plotting fit lines ####
+
+if(FITPLOT)
+{
+  dt_ = list()
+  k_ = 1
+  for(plate_ in plates_)
   {
-    dt_ = list()
-    k_ = 1
-    for(plate_ in plates_)
+    for (chnl_ in chnls_)
     {
-      for (chnl_ in chnls_)
-      {
-        tmp = matrix(data = MFI_mats[[plate_]][[chnl_]], ncol = 1, nrow = length(MFI_mats[[plate_]][[chnl_]]), byrow = F)
-        dt_[[k_]] = data.frame(MFI = tmp, plate = as.character(plate_), channel = chnl_, stringsAsFactors = T)
-        k_ = k_ + 1
-      }
+      tmp = matrix(data = MFI_mats[[plate_]][[chnl_]], ncol = 1, nrow = length(MFI_mats[[plate_]][[chnl_]]), byrow = F)[,,drop = T]/1e4
+      dt_[[k_]] = data.frame(MFI = tmp, plate = as.character(plate_), channel = chnl_, stringsAsFactors = T)
+      k_ = k_ + 1
     }
-    dt_ = do.call(what = rbind, args = dt_)
-    
-    pdf(file = '../out/MFI_fit_all_plates.pdf')
-    for(chnl_ in chnls_)
-    {
-      dt_tmp = dt_[dt_$channel %in% chnl_,]
-      p_ = ggplot(data = dt_tmp, aes(x = 1:nrow(dt_tmp), y = MFI/1e4, color = plate))+
-        theme(axis.line = element_line(color = 'black'), panel.background = element_blank(), legend.key = element_rect(fill = NA),
-              text = element_text(face = 'bold',size = 20), plot.title = element_text(vjust = 0.5, hjust = 0.5), aspect.ratio = 1)+
-        guides(color = guide_legend(override.aes = list(size = 5)))+
-        labs(x = 'Pseudo-time', y= 'MFI', title = paste0('Inter-plate MFIs (',chnl_,')'), color = 'Plate')+
-        geom_point(pch = 20, size = 2)+
-        geom_hline(yintercept = new_intcpts[[chnl_]]/1e4, color = 'darkred')+
-        scale_x_continuous(expand = c(0.01, 0.01)) + scale_y_continuous(expand = c(0.01, 0.01))
-      plot(p_)
-    }
-    graphics.off()
   }
+  dt_ = do.call(what = rbind, args = dt_)
+  
+  if(CORRECT) { pdf(file = '../out/MFI_fit_inter-plate_corrected.pdf') }else{ pdf(file = '../out/MFI_fit_inter-plate_no_correction.pdf') }
+  for(chnl_ in chnls_)
+  {
+    dt_tmp = dt_[dt_$channel %in% chnl_,]
+    p_ = ggplot(data = dt_tmp, aes(x = 1:nrow(dt_tmp), y = MFI, color = plate))+
+            theme(axis.line = element_line(color = 'black'), panel.background = element_blank(), legend.key = element_rect(fill = NA),
+                  text = element_text(face = 'bold',size = 20), plot.title = element_text(vjust = 0.5, hjust = 0.5), aspect.ratio = 1)+
+            guides(color = guide_legend(override.aes = list(size = 5)))+
+            labs(x = 'Pseudo-time', y= expression('MFI ('%*%10^-4*')'), title = chnl_, color = 'Plate')+
+            geom_point(pch = 20, size = 2)+
+            geom_hline(yintercept = median(dt_tmp$MFI), color = 'darkred')+
+            scale_x_continuous(expand = c(0.01, 0.01)) + scale_y_continuous(expand = c(0.01, 0.01))
+    plot(p_)
+  }
+  graphics.off()
 }
 
 # STEP 4: Plotting plate heatmaps ####
