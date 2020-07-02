@@ -7,7 +7,7 @@ args_ = commandArgs(trailingOnly = T)
 ######## MANUAL DEBUG ONLY ########
 # args_ = c('-chnl','SSC-H,VL1-H,VL6-H,BL1-H,BL3-H,BL5-H,RL1-H',
           # '-cpu', '3',
-          # '-n', '4')
+          # '-n', '5')
 ##################################
 
 # STEP 0: Options control ####
@@ -31,7 +31,7 @@ if(INVALID)
   message('\nInvalid call. Usage:\n',
           'Rscript 5_similarity_matrix_generator.R \\\n',
           '-chnl \'SSC-H,VL1-H,VL6-H,BL1-H,BL3-H,BL5-H,RL1-H\' \\\n',
-          '-n 4 \\\n',
+          '-n 5 \\\n',
           '-cpu 3\n')
   quit(save = 'no')
 }
@@ -47,7 +47,7 @@ options(nwarnings = 10000)      # shows all warnings (default is last 50)
 # STEP 1: Making similarity score matrix ####
 
 fls_ = list.files(path = '../data/', pattern = '*.fcs')
-simMat = matrix(data = 100, nrow = length(fls_), ncol = length(fls_))         # similarity matirx to store scores
+simMat = matrix(data = 100, nrow = length(fls_), ncol = length(fls_))     # similarity matirx to store scores
 flNms = unlist(lapply(X = fls_, FUN = function(fl_)
                                       {
                                         fl_ = strsplit(fl_, split = '[.]')[[1]]
@@ -55,11 +55,13 @@ flNms = unlist(lapply(X = fls_, FUN = function(fl_)
                                       }))
 colnames(simMat) = rownames(simMat) = flNms     # assigning smaple names to rows and columns of sim mat
 
+# traversing upper-triangular matrix of similarity matrix
+
 for(row_ in 1:(length(fls_)-1))     # for each row of sim mat
 {
-  # step 1.1: reading in files ####
+  # step 1.1: reading in 1st sample ####
 
-  smpl1 = flowCore::read.FCS(filename = paste0('../data/',fls_[row_]), transformation = F)      # input must be untransformed FCS file !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  smpl1 = flowCore::read.FCS(filename = paste0('../data/',fls_[row_]), transformation = F)      # input must be untransformed FCS file
   smpl1 = smpl1@exprs[,chnls_, drop = F]
   if(nrow(smpl1) == 0)
   {
@@ -67,12 +69,14 @@ for(row_ in 1:(length(fls_)-1))     # for each row of sim mat
     next()
   }
   smpl1[ which(smpl1 < 0 | is.nan(smpl1) | is.na(smpl1)) ] = 0
-  smpl1 = smpl1[which(!apply(X = smpl1, MARGIN = 1, FUN = max) %in% 0),]      # cells zero in all channels are removed
+  smpl1 = smpl1[which(!apply(X = smpl1, MARGIN = 1, FUN = max) %in% 0),]                        # cells zero in all channels are removed
   smpl1 = log(smpl1 + 1)
 
+  # for each column of sim mat in parallel
+  
   myfunc =  function(col_, fls_, smpl1, row_, chnls_, n_)
             {
-              # step 1.3: reading in files ####
+              # step 1.3: reading in 2nd sample ####
 
               smpl2 = flowCore::read.FCS(filename = paste0('../data/',fls_[col_]), transformation = F)     # data frame (table) of observations
               smpl2 = smpl2@exprs[,chnls_, drop = F]
@@ -90,7 +94,7 @@ for(row_ in 1:(length(fls_)-1))     # for each row of sim mat
 
               return(list(row = row_, col = col_, val = simScore_))
             }
-  cl_ = makeCluster(getOption('mc.cores', cor_))
+  cl_ = makeCluster(getOption('mc.cores', cor_/2))      # compaRe::compare uses 2 nodes already; (cor_/2)*2 = cor_
   simMat_ls = parLapply(X = (row_+1):length(fls_), fun = myfunc, cl = cl_, fls_, smpl1, row_, chnls_, n_)
   stopCluster(cl_)
 
