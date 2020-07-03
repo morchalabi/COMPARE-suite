@@ -1,23 +1,38 @@
-require(pheatmap)
+require(corrplot)
 
 # STEP 1: Reading in similarity matrix ####
 
-dt_mat = as.matrix(read.table(file = '../out/simMat.txt', header = T, as.is = T, check.names = F, sep = '\t', stringsAsFactors = F))
+simMat_ = as.matrix(read.table(file = '../out/simMat.txt', header = T, as.is = T, check.names = F, sep = '\t', stringsAsFactors = F))
 
-# STEP 2: Plotting ####
+# STEP 2: Scaling similarity values into [0,1] range ####
 
-min_ = if(round(min(dt_mat),2) < min(dt_mat)) { round(min(dt_mat)+0.01,2) }else{round(min(dt_mat),2)}
-max_ = if(round(max(dt_mat),2) > max(dt_mat)) { round(max(dt_mat)-0.01,2) }else{round(max(dt_mat),2)}
-for(mtd_ in c('mcquitty',"average","ward.D","ward.D2","single","complete","median","centroid"))
+diag(simMat_) = 0
+for(j_ in 1:nrow(simMat_))
 {
-  pheatmap(mat = dt_mat,
-           cluster_cols = T,treeheight_col = 0,
-           cluster_rows = T,treeheight_row = 200,
-           clustering_method = mtd_,
-           show_rownames = T, cellheight = 20, fontsize_row = 20,
-           show_colnames = T, cellwidth = 20, fontsize_col = 20,
-           fontsize = 13,
-           border_color = NA,
-           legend = T, legend_breaks = round(seq(min_,max_, length.out = 3),2),
-           annotation_col = NA, silent = T, filename = paste0('../out/simMat_heatmap_',mtd_,'.png'))
+  r_ = simMat_[j_,-j_]
+  simMat_[j_,-j_] = (2*(r_-min(r_))/diff(range(r_)))-1
 }
+simMat_ = simMat_^3      # transforming sim values to make a wider dynamic range
+
+# ordering rows and cols by total sum
+ids_ = order(apply(X = simMat_, MARGIN = 2, FUN = sum))
+simMat_ = simMat_[ids_, ids_]
+
+# STEP 3: Plotting ####
+
+cols_ = colorRampPalette(c("darkred","white","darkblue"))(100)
+width_ = heigth_ = nrow(simMat_)*1.3          # inferring width and height of matrix for plotting
+res_ = max(50,-5*(ncol(simMat_)-20)+600)      # inferring resolution
+jpeg(filename = '../out/simMat_heatmap.jpeg', width = width_, height = heigth_, units = 'cm',res = res_)
+corrplot(corr = simMat_,
+         is.corr = T,
+         diag = T,
+         cl.ratio = 0.1, cl.length = 3, cl.cex = 0.1*width_,
+         method = "circle",                   # uses circles to represent sim values
+         col = cols_,                         # color of values
+         bg = 'lightblue',                    # background color
+         tl.cex = 2,                          # row and column label size
+         tl.col = 'black',                    # color of labels
+         tl.srt = 80,                         # degree of column labels
+         font = 2)                            # bold font
+graphics.off()
