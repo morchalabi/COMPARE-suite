@@ -57,8 +57,7 @@ message('Clustering')
 out_ = compaRe::clustering(simMat_ = simMat,
                            controls_ = controls_ids,
                            thresh_ = NULL,
-                           smpl_graph = T,
-                           sim_graph = T)
+                           smpl_graph = T)
 
 # STEP 4: Adding things to drug tables ####
 message('Adding information to drug tables')
@@ -175,47 +174,6 @@ par(mai = c(0, 0, 0,0))
 plot(g_, add = F, mark.groups = which(V(g_)$name %in% 'Control'), mark.col = 'lightgreen', mark.expand = 1, mark.border = NA, directed = F)
 graphics.off()
 
-
-# STEP 7: Plotting similarity graph ####
-message('Plotting similarity graph')
-
-# graph atts
-g_ = out_$similarity_graph
-g_$layout = layout_nicely(graph = g_, dim = 2)
-
-# vertex atts
-if(!is.na(wells_drugs$concentration[1]))      # if there are drug doses
-{
-  rownames(wells_drugs) = wells_drugs$file
-  cntrl_ind = which(V(g_)$name == 'Control')
-  V(g_)$label = V(g_)$name
-  V(g_)$label[-cntrl_ind] = paste0(wells_drugs[V(g_)$name[-cntrl_ind],"drug"],'_',wells_drugs[V(g_)$name[-cntrl_ind],"concentration"])
-}
-V(g_)$color = 'grey'
-V(g_)$size <- 0.1
-V(g_)$frame.color = NA
-V(g_)$label.cex = 1
-V(g_)$label.font = 2
-V(g_)$label.dist = 0.05
-V(g_)$label.degree = sample(c(-pi/2,pi/2), length(V(g_)),replace = T)
-V(g_)$label.color = adjustcolor(col = 'black', alpha.f = .6)
-
-# edge atts
-cols_ = colorRampPalette(colors = c('red', 'blue'))(length(E(g_)))
-names(cols_) = sort(E(g_)$weight)     # lower values are assigned to red shades
-E(g_)$color = cols_[as.character(E(g_)$weight)]
-E(g_)$width = 1
-E(g_)$arrow.size = 0.3
-E(g_)$label = round(E(g_)$weight,1)
-E(g_)$label.cex = 0.7
-E(g_)$label.font = 2
-E(g_)$label.color = 'darkgreen'
-
-# plotting
-pdf(file = '../out/similarity_graph.pdf', width = 100, height = 100)
-par(mai = c(0, 0, 0,0))
-plot(g_, add = F, mark.groups = which(V(g_)$name %in% 'Control'), mark.col = 'lightgreen', mark.expand = 1, mark.border = NA, directed = F)
-graphics.off()
 
 # STEP 8: Writing cliques ####
 message('Writting cliques')

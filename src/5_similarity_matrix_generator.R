@@ -5,9 +5,9 @@ require(parallel)
 args_ = commandArgs(trailingOnly = T)
 
 ######## MANUAL DEBUG ONLY ########
-# args_ = c('-chnl','SSC-H,VL1-H,VL6-H,BL1-H,BL3-H,BL5-H,RL1-H',
-          # '-cpu', '3',
-          # '-n', '5')
+# args_ = c('-cpu', '10',
+# '-n', '3',
+# '-chnl','SSC-H,VL1-H,VL6-H,BL1-H,BL3-H,BL5-H,RL1-H')
 ##################################
 
 # STEP 0: Options control ####
@@ -90,11 +90,11 @@ for(row_ in 1:(length(fls_)-1))     # for each row of sim mat
 
               # Step 1.5: measuring similarity
 
-              simScore_ = compaRe::compare(smpl1 = smpl1, smpl2 = smpl2, n_ = n_)
+              simScore_ = compaRe::compare(smpl1 = smpl1, smpl2 = smpl2, n_ = n_, par_ = F)
 
               return(list(row = row_, col = col_, val = simScore_))
             }
-  cl_ = makeCluster(getOption('mc.cores', cor_/2))      # compaRe::compare uses 2 nodes already; (cor_/2)*2 = cor_
+  cl_ = makeCluster(getOption('mc.cores', cor_))
   simMat_ls = parLapply(X = (row_+1):length(fls_), fun = myfunc, cl = cl_, fls_, smpl1, row_, chnls_, n_)
   stopCluster(cl_)
 
