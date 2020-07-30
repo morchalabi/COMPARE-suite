@@ -6,7 +6,7 @@ require(ggplot2)
 args_ = commandArgs(trailingOnly = T)
 
 ###### Manual Debugging ########
-# args_ = c('-chnl', 'SSC-H,VL1-H,VL6-H,BL1-H,BL3-H,BL5-H,RL1-H',
+# args_ = c('-chnl', 'VL1-H,VL6-H,BL1-H,BL3-H,BL5-H,RL1-H',
 #           '-correct', 'T',
 #           '--fit-plot', 'T',
 #           '--heat-plot', 'T')
@@ -134,7 +134,7 @@ func_ = function(chnls_, CORRECT, FITPLOT, HEATPLOT, inURL = '../data/', outURL 
   
         fit_ = lm(data = data.frame(offset = 1:length(y_tmp), chnl = y_tmp), formula = chnl~offset)
         a_ = fit_$coefficients["offset"]      # slope
-        if(a_ <= 0) { warning(paste0('Slope for plate #',plate_,' channel #',chnl_,' was negative, no intra-plate correction is performed!')); next() }
+        if(a_ <= 0) { warning(paste0('Slope for plate #',plate_,' channel #',chnl_,' was not positive, no intra-plate correction is necessary!')); next() }
         b_ = fit_$coefficients["(Intercept)"]
         alpha_ = (a_*x_)/(a_*x_ + b_)         # correction factors
   

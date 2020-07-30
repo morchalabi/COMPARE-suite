@@ -107,7 +107,7 @@ func_ = function(CORRECT, FITPLOT, HEATPLOT, inURL = '../data/', outURL = '../ou
   
       fit_ = lm(data = data.frame(offset = 1:length(y_tmp), live_cells = y_tmp), formula = live_cells~offset)
       a_ = fit_$coefficients["offset"]      # slope
-      if(a_ <= 0) { warning(paste0('Slope for plate #',plate_,' was negative, no intra-plate correction is performed!')); viability_mats[[plate_]] = viability_mat; next() }
+      if(a_ <= 0) { warning(paste0('Slope for plate #',plate_,' was not positive, no intra-plate correction is necessary!')); viability_mats[[plate_]] = viability_mat; next() }
       b_ = fit_$coefficients["(Intercept)"]
       alpha_ = (a_*x_)/(a_*x_ + b_)         # correction factors
   
