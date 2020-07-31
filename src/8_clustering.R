@@ -57,7 +57,8 @@ func_ = function(chnls_, inURL = '../data/', outURL = '../out/')
   out_ = compaRe::clustering(simMat_ = simMat,
                              controls_ = controls_ids,
                              thresh_ = NULL,
-                             smpl_graph = T)
+                             smpl_graph = T,
+                             disp_graph = T)
   
   # STEP 4: Adding things to drug tables ####
   message('Adding information to drug tables')
@@ -71,7 +72,7 @@ func_ = function(chnls_, inURL = '../data/', outURL = '../out/')
     wells_drugs$sim_vs_all[rowIndx] = smpl_tbl$sim_vs_all[row_]
     wells_drugs$sim_vs_control[rowIndx] = smpl_tbl$sim_vs_control[row_]
     wells_drugs$community[rowIndx] = smpl_tbl$community[row_]
-    wells_drugs$live_cells[rowIndx] = read.FCS(filename = paste0(inURL,smpl_tbl$sample[row_],'.fcs'),transformation = F, truncate_max_range = F)fcs_dt@description$viability
+    wells_drugs$live_cells[rowIndx] = read.FCS(filename = paste0(inURL,smpl_tbl$sample[row_],'.fcs'),transformation = F, truncate_max_range = F)@description$viability
   }
   wells_drugs = wells_drugs[order(wells_drugs$drug, wells_drugs$concentration, decreasing = T),c("drug","concentration","control","sim_vs_control","community","sim_vs_all","live_cells","file")]
   
@@ -173,7 +174,6 @@ func_ = function(chnls_, inURL = '../data/', outURL = '../out/')
   plot(g_, add = F, mark.groups = which(V(g_)$name %in% 'Control'), mark.col = 'lightgreen', mark.expand = 1, mark.border = NA, directed = F)
   graphics.off()
   
-  
   # STEP 7: Writing cliques ####
   message('Writting cliques')
   
@@ -241,7 +241,7 @@ func_ = function(chnls_, inURL = '../data/', outURL = '../out/')
   # running umap
   
   umap_ = as.data.frame(umap(X = centroids_,
-                             n_neighbors = nrow(centroids_)-1,
+                             n_neighbors = min(5,nrow(centroids_)-1),
                              pca = ncol(centroids_)-1,n_components = ncol(centroids_)-1,
                              n_threads = 3))
   colnames(umap_) = paste0('UMAP',1:(ncol(centroids_)-1))
