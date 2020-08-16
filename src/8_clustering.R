@@ -8,7 +8,8 @@ require(pheatmap)
 args_ = commandArgs(trailingOnly = T)
 
 ######## MANUAL DEBUG ONLY ########
-# args_ = c('-chnl','SSC-H,VL1-H,BL1-H,BL3-H,BL5-H,RL1-H,VL6-H')
+# args_ = c('-chnl','SSC-H,VL1-H,BL1-H,BL3-H,BL5-H,RL1-H,VL6-H',
+#           '-nn', '20')
 #********************************
 
 # STEP 0: Options control ####
@@ -19,21 +20,27 @@ chnls_ = args_[which(grepl(x = args_, pattern = '^-chnl', fixed = F))+1]
 chnls_ = chnls_[!is.na(chnls_)]
 if(length(chnls_) == 0) { INVALID = T }
 
+nn_ = args_[which(grepl(x = args_, pattern = '^-nn', fixed = F))+1]
+nn_ = as.integer(nn_[!is.na(nn_)])
+if(length(nn_) == 0) { INVALID = T }
+
 if(INVALID)
 {
   message('\nInvalid call. Usage:\n',
           'Rscript 8_clustering.R \\\n',
-          '-chnl \'SSC-H,VL1-H,VL6-H,BL1-H,BL3-H,BL5-H,RL1-H\n')
+          '-chnl \'SSC-H,VL1-H,VL6-H,BL1-H,BL3-H,BL5-H,RL1-H\' \\\n',
+          '-nn 5\n')
   quit(save = 'no')
 }
 
 chnls_ = strsplit(chnls_, split = '[,]')[[1]]
 message('You set:',
-        '\nchannels to: ', paste0(chnls_,collapse = ', '))
+        '\nchannels to: ', paste0(chnls_,collapse = ', '),
+        '\nnn to: ', nn_,'\n')
 
 options(scipen = 999)
 
-func_ = function(chnls_, inURL = '../data/', outURL = '../out/')
+func_ = function(chnls_, nn_, inURL = '../data/', outURL = '../out/')
 {
   # STEP 1: Reading in files ####
   
@@ -241,7 +248,7 @@ func_ = function(chnls_, inURL = '../data/', outURL = '../out/')
   # running umap
   
   umap_ = as.data.frame(umap(X = centroids_,
-                             n_neighbors = nrow(centroids_)-1,
+                             n_neighbors = min(nn_,nrow(centroids_)-1),
                              pca = ncol(centroids_)-1,n_components = ncol(centroids_)-1,
                              n_threads = 3))
   colnames(umap_) = paste0('UMAP',1:(ncol(centroids_)-1))
@@ -312,6 +319,6 @@ func_ = function(chnls_, inURL = '../data/', outURL = '../out/')
   return(NULL)
 }
 
-null_ = func_(chnls_ = chnls_)
+null_ = func_(chnls_ = chnls_, nn_ = nn_)
 message('\nDone!\n')
 summary(warnings())
