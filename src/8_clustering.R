@@ -241,7 +241,7 @@ func_ = function(chnls_, inURL = '../data/', outURL = '../out/')
   # running umap
   
   umap_ = as.data.frame(umap(X = centroids_,
-                             n_neighbors = min(5,nrow(centroids_)-1),
+                             n_neighbors = nrow(centroids_)-1,
                              pca = ncol(centroids_)-1,n_components = ncol(centroids_)-1,
                              n_threads = 3))
   colnames(umap_) = paste0('UMAP',1:(ncol(centroids_)-1))
