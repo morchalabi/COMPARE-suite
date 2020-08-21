@@ -39,7 +39,7 @@ if(INVALID)
 chnls_ = strsplit(chnls_, split = '[,]')[[1]]
 message('You set:',
         '\nchannels to: ', paste0(chnls_,collapse = ', '),
-        '\nn_ to: ',       n_,
+        '\n_ to: ',       n_,
         '\nCPU to: ',      cor_,'\n')
 
 options(nwarnings = 10000)      # shows all warnings (default is last 50)
