@@ -1,8 +1,10 @@
+
 require(flowCore)
 
-options(nwarnings = 10000)
-
-func_ = function(inURL = '../data/')
+# inURL
+#
+#
+step2_spillover_compensation = function(inURL = '../data/')
 {
   # STEP 1: Compensating ####
   
@@ -45,7 +47,3 @@ func_ = function(inURL = '../data/')
   
   return(NULL)
 }
-
-null_ = func_()
-message('\nDone!\n')
-summary(warnings())

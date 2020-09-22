@@ -1,3 +1,4 @@
+
 require(compaRe)
 require(flowCore)
 require(uwot)
@@ -5,42 +6,12 @@ require(ggplot2)
 require(ggrepel)
 require(pheatmap)
 
-args_ = commandArgs(trailingOnly = T)
-
-######## MANUAL DEBUG ONLY ########
-# args_ = c('-chnl','SSC-H,VL1-H,BL1-H,BL3-H,BL5-H,RL1-H,VL6-H',
-#           '-nn', '20')
-#********************************
-
-# STEP 0: Options control ####
-
-INVALID = F
-
-chnls_ = args_[which(grepl(x = args_, pattern = '^-chnl', fixed = F))+1]
-chnls_ = chnls_[!is.na(chnls_)]
-if(length(chnls_) == 0) { INVALID = T }
-
-nn_ = args_[which(grepl(x = args_, pattern = '^-nn', fixed = F))+1]
-nn_ = as.integer(nn_[!is.na(nn_)])
-if(length(nn_) == 0) { INVALID = T }
-
-if(INVALID)
-{
-  message('\nInvalid call. Usage:\n',
-          'Rscript 8_clustering.R \\\n',
-          '-chnl \'SSC-H,VL1-H,VL6-H,BL1-H,BL3-H,BL5-H,RL1-H\' \\\n',
-          '-nn 5\n')
-  quit(save = 'no')
-}
-
-chnls_ = strsplit(chnls_, split = '[,]')[[1]]
-message('You set:',
-        '\nchannels to: ', paste0(chnls_,collapse = ', '),
-        '\nnn to: ', nn_,'\n')
-
-options(scipen = 999)
-
-func_ = function(chnls_, nn_, inURL = '../data/', outURL = '../out/')
+# chnls_
+# nn_
+# inURL
+# outURL
+#
+step8_clustering = function(chnls_, nn_, inURL = '../data/', outURL = '../out/')
 {
   # STEP 1: Reading in files ####
   
@@ -254,6 +225,9 @@ func_ = function(chnls_, nn_, inURL = '../data/', outURL = '../out/')
   colnames(umap_) = paste0('UMAP',1:(ncol(centroids_)-1))
   rownames(umap_) = rownames(centroids_)
   
+  # write out the unscaled centroids_ table
+  write.table(x = centroids_, file = paste0(outURL,'/Centroids.tsv'), sep = '\t', col.names = T, quote = F, row.names = T)
+  
   # plotting
   # coloring cliques by MFIs
   
@@ -316,9 +290,10 @@ func_ = function(chnls_, nn_, inURL = '../data/', outURL = '../out/')
              annotation_col = NA, silent = T, filename = paste0(outURL,'/cliques_heatmap_',mtd_,'.pdf'))
   }
 
+  
+  # STEP 10: Output out_ and umap_, files needed to generate GUI elements ####
+  save(out_, file = paste0(outURL, '/compare_clustering.RData'))
+  write.table(x = umap_, file = paste0(outURL,'/UMAP.tsv'), sep = '\t', col.names = T, quote = F, row.names = T)
+  
   return(NULL)
 }
-
-null_ = func_(chnls_ = chnls_, nn_ = nn_)
-message('\nDone!\n')
-summary(warnings())

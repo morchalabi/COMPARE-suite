@@ -1,8 +1,10 @@
+
 require(pheatmap)
 
-options(nwarnings = 10000)      # shows all warnings (default is last 50)
-
-func_ = function(inURL = '../data/', outURL = '../out/')
+# inURL
+# outURL
+#
+step7_negative_control_outlier_detector = function(inURL = '../data/', outURL = '../out/')
 {
   # STEP 1: Reading annotation file ####
   
@@ -34,7 +36,3 @@ func_ = function(inURL = '../data/', outURL = '../out/')
 
   return(NULL)
 }
-
-null_ = func_()
-message('\nDone!\n')
-summary(warnings())

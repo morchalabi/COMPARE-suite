@@ -1,8 +1,10 @@
+
 require(corrplot)
 
-options(nwarnings = 10000)      # shows all warnings (default is last 50)
-
-func_ = function(outURL = '../out/')
+# outURL
+#
+#
+step6_similarity_matrix_heatmap = function(outURL = '../out/')
 {
   # STEP 1: Reading in similarity matrix ####
   
@@ -43,7 +45,3 @@ func_ = function(outURL = '../out/')
   
   return(NULL)
 }
-
-null_ = func_()
-message('\nDone!\n')
-summary(warnings())
