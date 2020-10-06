@@ -16,4 +16,4 @@ To install the pipleline, simply download the zip file or clone the repository. 
  * ggplot2
  * gridExtra
  
- I am in <span style="font-family:Papyrus; font-size:4em;">LOVE!</span>
+COMPA**R**E
