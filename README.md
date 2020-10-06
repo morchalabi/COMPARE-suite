@@ -1,1 +1,1 @@
-Please refer to COMPARE suite's [wiki] (https://github.com/morchalabi/COMAPRE-suite/wiki/User-Guide)
+Please refer to COMPARE suite's [Wiki page](https://github.com/morchalabi/COMAPRE-suite/wiki/User-Guide)
