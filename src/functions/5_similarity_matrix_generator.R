@@ -9,7 +9,7 @@ require(parallel)
 # inURL
 # outURL
 #
-step5_similarity_matrix_generator = function(chnls_, n_, cor_, inURL = '../data/', outURL = '../out/')
+step5_similarity_matrix_generator = function(chnls_, n_, cor_, inURL = '../../data/', outURL = '../../out/')
 {
   # STEP 1: Making similarity score matrix ####
   

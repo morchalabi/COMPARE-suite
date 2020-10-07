@@ -4,7 +4,7 @@ source("functions/1_overview.R")
 args_ = commandArgs(trailingOnly = T)
 
 ###### Manual Debugging ########
-args_ = c('--min-events','1000')
+# args_ = c('--min-events','1000')
 #********************************
 
 # STEP 0: Options control ####
