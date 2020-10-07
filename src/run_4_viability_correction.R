@@ -28,7 +28,7 @@ if(length(HEATPLOT) == 0) { INVALID = T }
 if(INVALID)
 {
   message('\nInvalid call. Usage:\n',
-          'Rscript 4_viability_correction.R \\\n',
+          'Rscript run_4_viability_correction.R \\\n',
           '-correct TRUE \\\n',
           '--fit-plot TRUE \\\n',
           '--heat-plot TRUE\n')

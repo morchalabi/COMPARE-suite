@@ -23,7 +23,7 @@ if(length(nn_) == 0) { INVALID = T }
 if(INVALID)
 {
   message('\nInvalid call. Usage:\n',
-          'Rscript 8_clustering.R \\\n',
+          'Rscript run_8_clustering.R \\\n',
           '-chnl \'SSC-H,VL1-H,VL6-H,BL1-H,BL3-H,BL5-H,RL1-H\' \\\n',
           '-nn 5\n')
   quit(save = 'no')

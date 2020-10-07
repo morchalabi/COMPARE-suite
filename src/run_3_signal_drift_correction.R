@@ -33,7 +33,7 @@ if(length(HEATPLOT) == 0) { INVALID = T }
 if(INVALID)
 {
   message('\nInvalid call. Usage:\n',
-          'Rscript 3_signal_drift_correction.R \\\n',
+          'Rscript run_3_signal_drift_correction.R \\\n',
           '-chnl \'SSC-H,VL1-H,VL6-H,BL1-H,BL3-H,BL5-H,RL1-H\' \\\n',
           '-correct TRUE \\\n',
           '--fit-plot TRUE \\\n',

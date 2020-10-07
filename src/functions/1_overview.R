@@ -4,7 +4,7 @@ require(flowCore, quietly = T)
 # min_events
 # inURL
 #
-step1_overview = function(min_events, inURL = '../../data/')
+step1_overview = function(min_events, inURL = '../data/')
 {
   # STEP 1: Compensating ####
   

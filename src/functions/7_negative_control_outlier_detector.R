@@ -4,7 +4,7 @@ require(pheatmap)
 # inURL
 # outURL
 #
-step7_negative_control_outlier_detector = function(inURL = '../../data/', outURL = '../../out/')
+step7_negative_control_outlier_detector = function(inURL = '../data/', outURL = '../out/')
 {
   # STEP 1: Reading annotation file ####
   

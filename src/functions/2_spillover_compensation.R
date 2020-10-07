@@ -4,7 +4,7 @@ require(flowCore)
 # inURL
 #
 #
-step2_spillover_compensation = function(inURL = '../../data/')
+step2_spillover_compensation = function(inURL = '../data/')
 {
   # STEP 1: Compensating ####
   

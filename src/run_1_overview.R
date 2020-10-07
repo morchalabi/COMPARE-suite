@@ -18,7 +18,7 @@ if(length(min_events) == 0) { INVALID = T }
 if(INVALID)
 {
   message('\nMinimum number of events/cells to process a fcs file was not passed in. Usage:\n',
-          'Rscript 1_overview.R \\\n',
+          'Rscript run_1_overview.R \\\n',
           '--min-events 1000\n')
   quit(save = 'no')
 }

@@ -10,7 +10,7 @@ require(ggplot2)
 # inURL
 # outURL
 #
-step4_viability_correction = function(CORRECT, FITPLOT, HEATPLOT, inURL = '../../data/', outURL = '../../out/')
+step4_viability_correction = function(CORRECT, FITPLOT, HEATPLOT, inURL = '../data/', outURL = '../out/')
 {
   # STEP 1: Computing viabilities ####
   

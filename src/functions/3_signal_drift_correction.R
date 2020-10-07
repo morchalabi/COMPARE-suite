@@ -11,7 +11,7 @@ require(ggplot2)
 # inURL
 # outURL
 #
-step3_signal_drift_correction = function(chnls_, CORRECT, FITPLOT, HEATPLOT, inURL = '../../data/', outURL = '../../out/')
+step3_signal_drift_correction = function(chnls_, CORRECT, FITPLOT, HEATPLOT, inURL = '../data/', outURL = '../out/')
 {
   # STEP 1: Computing MFIs ####
   

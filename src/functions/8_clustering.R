@@ -11,7 +11,7 @@ require(pheatmap)
 # inURL
 # outURL
 #
-step8_clustering = function(chnls_, nn_, inURL = '../../data/', outURL = '../../out/')
+step8_clustering = function(chnls_, nn_, inURL = '../data/', outURL = '../out/')
 {
   # STEP 1: Reading in files ####
   
