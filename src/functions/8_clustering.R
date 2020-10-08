@@ -5,6 +5,7 @@ require(uwot)
 require(ggplot2)
 require(ggrepel)
 require(pheatmap)
+require(igraph)
 
 # chnls_
 # nn_
