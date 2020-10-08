@@ -1,5 +1,5 @@
 
-require(flowCore, quietly = T)
+require(flowCore)
 
 # min_events
 # inURL
