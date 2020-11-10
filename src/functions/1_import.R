@@ -6,6 +6,7 @@
 # Input arguments are:
 #   inURL: address to data files
 #   min_events: min number of events (like cells or beads) to call a file valid
+# Algorithm designed and implemented by Mori C.H., mor.chalabi@gmail.com
 
 require(flowCore)
 
