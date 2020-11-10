@@ -28,7 +28,7 @@ message('Minimum number of events/cells is set to ',min_events)
 options(nwarnings = 10000)
 
 # run workflow step
-step1_overview(min_events)
+step1_import(min_events)
 
 message('\nDone!\n')
 summary(warnings())
