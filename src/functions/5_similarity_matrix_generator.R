@@ -80,3 +80,8 @@ step5_similarity_matrix_generator = function(HTS_HCS, chnls_, n_, cor_, inURL = 
   
   return(NULL)
 }
+
+chnls_ = c('Nd142','Nd144','Nd148','Sm154','Eu151','Gd158','Gd160','Dy162','Dy164','Er166','Er167','Er170','Yb171','Yb174','Yb176','Lu175')
+n_ = 4
+step5_similarity_matrix_generator(HTS_HCS = F, chnls_ = chnls_, n_ = n_, cor_ = 3, inURL = '../data/', outURL = '../out/')
+

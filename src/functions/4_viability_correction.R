@@ -1,15 +1,20 @@
+# This scripts removes intra- and inter-plate cell viability drift bias. Running it with no request for correction reveals possible cell viability bias.
+# To remove cell viability bias, it needs to know the direction along which the bias has occurred like the order by which wells have been read.
+# Each well is represented by the number of live cells.
+# Input arguments are:
+#   CORRECT: should the bias be corrected?
+#   drctn_: direction of bias 
+#   FITPLOT: should the regression plots be output?
+#   HEATPLOT: should the plate heatmaps be output?
+#   inURL: address to iput data files
+#   outURL: address to output result
+# Algorithm designed and implemented by Mori C.H., mor.chalabi@gmail.com
 
 require(flowCore)
 require(pheatmap)
 require(gridExtra)
 require(ggplot2)
 
-# CORRECT
-# FITPLOT
-# HEATPLOT
-# inURL
-# outURL
-#
 step4_viability_correction = function(CORRECT, FITPLOT, HEATPLOT, inURL = '../data/', outURL = '../out/')
 {
   # STEP 1: Computing viabilities ####
@@ -163,7 +168,7 @@ step4_viability_correction = function(CORRECT, FITPLOT, HEATPLOT, inURL = '../da
         # computing correction factors
         alpha_ = (new_intcpts - old_intcpts[plate_])/old_intcpts[plate_]     # correction factors (fold changes)
   
-        # correcting viabilities of currect fcs
+        # correcting viabilities of current fcs
         viability_mats[[plate_]][i_,j_] = round(viability_mats[[plate_]][i_,j_]*(1+alpha_))
   
         # correcting fcs file

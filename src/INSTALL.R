@@ -112,7 +112,6 @@ if(!requireNamespace("dbscan"))
   install.packages('dbscan')
 }
 
-
 # Bioconductor packages ####
 
 if(!requireNamespace("flowCore"))
@@ -130,4 +129,3 @@ if(!requireNamespace("ComplexHeatmap"))
 # GitHub package ####
 
 devtools::install_github(repo = 'morchalabi/compaRe', ref = 'dev', dependencies = T)
-
