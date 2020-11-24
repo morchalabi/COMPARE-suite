@@ -1,9 +1,12 @@
+# This module applies spillover/compensation matrix embedded in the fcs file to expression data.
+# This module replaces spillover matrix with the identity matrix and update $FIL keyword with "compensated" suffix.
+# This module OVERWRITES original fcs files.
+# Input arguments are:
+#   inURL (string): address to input data files like ../data
+# Algorithm designed and implemented by Mori C.H., mor.chalabi@gmail.com
 
 require(flowCore)
 
-# inURL
-#
-#
 step2_spillover_compensation = function(inURL = '../data/')
 {
   # STEP 1: Compensating ####

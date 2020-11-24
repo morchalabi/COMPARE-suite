@@ -1,11 +1,11 @@
-# This script moves undesirable (broken or too small) files, if any, to REMOVED sub-directory.
+# This module moves undesirable (broken or too small) files, if any, to REMOVED sub-directory.
 # It needs a standard annotation file showing the place of each file on the plates of the input assay.
 # Annotation file will be OVERWRITTEN so that it's updated to contain info of valid files only.
 # It can only import csv (comma delimited), tsv (tab delimited) and FCS (mass/flow cytometry standard) files.
 # csv and tsv file types are coerced to FCS.
 # Input arguments are:
-#   inURL: address to data files
-#   min_events: min number of events (like cells or beads) to call a file valid
+#   inURL (string): address to data files like ../data
+#   min_events (integer): min number of events (like cells or beads) to call a file valid like 1000 or 1e3
 # Algorithm designed and implemented by Mori C.H., mor.chalabi@gmail.com
 
 require(flowCore)
@@ -39,7 +39,7 @@ step1_import = function(inURL = '../data/', min_events)
     {
       sep_ = if(fmt_ == 'csv') {','}else{'\t'}
       dt_ = tryCatch(expr = read.delim(file = paste0(inURL,fl_), header = T, sep = sep_, quote = "", as.is = T, check.names = F, na.strings = c('NA','N/A','na','n/a','','.'), stringsAsFactors = F),
-                       error = function(err) { return( matrix(data = 0, dimnames = list('row','column')) ) })
+                     error = function(err) { return( matrix(data = 0, dimnames = list('row','column')) ) })
     }
     
     # STEP 2: Removing too small files ####

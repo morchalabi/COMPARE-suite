@@ -1,9 +1,11 @@
+# This module reveals potential outliers among negative controls. It is necessary to remove them before clustering.
+# Input arguments are:
+#   inURL (string): address to input data files like ../data
+#   outURL (string): address to output result like ../out
+# Algorithm designed and implemented by Mori C.H., mor.chalabi@gmail.com
 
 require(pheatmap)
 
-# inURL
-# outURL
-#
 step7_negative_control_outlier_detector = function(inURL = '../data/', outURL = '../out/')
 {
   # STEP 1: Reading annotation file ####

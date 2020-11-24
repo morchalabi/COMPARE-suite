@@ -1,15 +1,15 @@
-# This scripts removes intra- and inter-plate signal drift bias. Running it with no request for correction reveals possible sources of bias.
+# This module removes intra- and inter-plate signal drift bias. Running it with no request for correction reveals possible sources of bias.
 # Possible sources of bias are like edge effect, signal drift, cell viability, auto-fluorescence and carry-over effect.
 # To remove signal drift bias, it needs to know the direction along which the bias has occurred like the order by which wells have been read.
 # Each well is represented by the median of each marker.
 # Input arguments are:
-#   chnls_: channel (not marker) names
-#   CORRECT: should the bias be corrected?
-#   drctn_: direction of bias 
-#   FITPLOT: should the regression plots be output?
-#   HEATPLOT: should the plate heatmaps be output?
-#   inURL: address to iput data files
-#   outURL: address to output result
+#   chnls_ (quoted string): channel (not marker) names like 'chnl1,chn2,chnl3'
+#   CORRECT (boolean): should the bias be corrected? like T/TRUE/true or F/FALSE/false
+#   drctn_ (string): direction of bias like column or row
+#   FITPLOT (boolean): should the regression plots be output? like T/TRUE/true or F/FALSE/false
+#   HEATPLOT (boolean): should the plate heatmaps be output? like T/TRUE/true or F/FALSE/false
+#   inURL (string): address to input data files like ../data
+#   outURL (string): address to output result like ../out
 # Algorithm designed and implemented by Mori C.H., mor.chalabi@gmail.com
 
 require(flowCore)
@@ -64,7 +64,7 @@ step3_signal_drift_correction = function(chnls_, CORRECT, drctn_, FITPLOT, HEATP
       
       i_ = which(rows_ == annot_tmp$row[rw_])                                   # row index
       j_ = which(cols_ == annot_tmp$column[rw_])                                # column index
-      offset_ = if(drctn_ == 'column') { m_*(j_-1)+i_ }else{ n_*(i_-1)+j_ }     # column-wise (left to right) or row-wise (left to right) offset
+      offset_ = if(drctn_ == 'column'){ m_*(j_-1)+i_ }else{ n_*(i_-1)+j_ }      # column-wise (left to right) or row-wise (left to right) offset
       fcs_dt_ls[[offset_]] = fcs_dt                                             # fcs data at location (i,j), offset, of current plate
       fcs_flNms[offset_] = annot_tmp$file[rw_]                                  # fcs file name at location (i,j), offset, of current plate
   
@@ -116,8 +116,8 @@ step3_signal_drift_correction = function(chnls_, CORRECT, drctn_, FITPLOT, HEATP
           warning(paste0('Slope for plate #',plate_,' channel #',chnl_,' was not positive, no intra-plate correction is necessary!'))     # if slope was not positive, no correction
           next()                                                                                                                          # goes to next channel
         }
-        b_ = fit_$coefficients["(Intercept)"]     # intercept of regression line
-        alpha_ = b_/(a_*x_ + b_)                  # correction coefficients for each well per channel: y*/y = b/ax+b -> y* = y(b/ax+b), y* is translated y
+        b_ = fit_$coefficients["(Intercept)"]                                                           # intercept of regression line
+        alpha_ = b_/(a_*x_ + b_)                                                                        # correction coefficients for each well per channel: y*/y = b/ax+b -> y* = y(b/ax+b), y* is translated y
   
         # intra-plate correction of all files of current plate of current channel
   
@@ -127,7 +127,7 @@ step3_signal_drift_correction = function(chnls_, CORRECT, drctn_, FITPLOT, HEATP
   
           # correcting MFI of current fcs for current channel (to avoid recomputing IQR)
           
-          if(drctn_ == 'column')      # extracting column-wise
+          if(drctn_ == 'column')      # extracting (i,j) from column-wise offset
           {
             j_ = round(ceiling(offset_/m_))     # round is added because arithmetic on integer and double is not exact in R
             i_ = round(offset_ - m_*(j_-1))
@@ -159,6 +159,8 @@ step3_signal_drift_correction = function(chnls_, CORRECT, drctn_, FITPLOT, HEATP
   
   if(FITPLOT)
   {
+    # plotting regression plots for each channel per page
+    
     if(CORRECT) { pdf(file = paste0(outURL,'/MFI_fit_intra-plate_corrected.pdf')) }else{ pdf(file = paste0(outURL,'/MFI_fit_intra-plate_no_correction.pdf')) }
     
     for(plate_ in plates_)
@@ -179,10 +181,10 @@ step3_signal_drift_correction = function(chnls_, CORRECT, drctn_, FITPLOT, HEATP
         upWhisker_ = min(max(y_), quartiles_[2] + IQR_*1.5)
         y_tmp = y_[lowWhisker_ < y_ & y_ < upWhisker_]      # valid MFIs of current plate of current channel needed for regression analysis
         
-        # fitting regressed line
+        # fitting regression line
         
         fit_ = lm(data = data.frame(offset = 1:length(y_tmp), chnl = y_tmp), formula = chnl~offset)     # fitting simple linear regression
-        a_ = if(CORRECT) { 0 }else{ fit_$coefficients["offset"] }                                       # slope of the regression line
+        a_ = if(CORRECT){ 0 }else{ fit_$coefficients["offset"] }                                        # slope of the regression line
         b_ = fit_$coefficients["(Intercept)"]                                                           # intercept of the regression line
   
         p_ = ggplot(data = data.frame(x = x_, y = y_, Plate = plate_), aes(x = x_, y = y_, color = as.factor(Plate)))+
@@ -234,20 +236,20 @@ step3_signal_drift_correction = function(chnls_, CORRECT, drctn_, FITPLOT, HEATP
       cols_ = sort(unique(annot_tmp$column))            # number of columns in current plate
       for(rw_ in 1:nrow(annot_tmp))                     # for each well on the current plate
       {
-        fcs_dt = read.FCS(filename = paste0(inURL,annot_tmp$file[rw_],'.fcs'), transformation = F, truncate_max_range = F)      # data of current well
+        fcs_dt = read.FCS(filename = paste0(inURL,annot_tmp$file[rw_],'.fcs'), transformation = F, truncate_max_range = F)      # event data of current well
         
         # extracting row and column indices of current well
         
-        i_ = which(rows_ == annot_tmp$row[rw_])         # row index
-        j_ = which(cols_ == annot_tmp$column[rw_])      # column index
+        i_ = which(rows_ == annot_tmp$row[rw_])         # row index of current well
+        j_ = which(cols_ == annot_tmp$column[rw_])      # column index of current well
         
         # inter-plate correction per channel
         
         for(chnl_ in chnls_)      # for each channel
         {
-          # computing correction factor
+          # computing correction coefficient
           
-          alpha_ = new_intcpts[[chnl_]] /old_intcpts[plate_,chnl_]     # correction factor: b*/b = y*/y -> y* = y(b*/b)
+          alpha_ = new_intcpts[[chnl_]]/old_intcpts[plate_,chnl_]     # correction coefficient: b*/b = y*/y -> y* = y(b*/b)
   
           # correcting MFI of current fcs (to avoid recomputing IQR)
           
@@ -261,8 +263,8 @@ step3_signal_drift_correction = function(chnls_, CORRECT, drctn_, FITPLOT, HEATP
         
         # writing corrected fcs files
         
-        keyword(fcs_dt)[['$FIL']] = paste0(annot_tmp$file[rw_],'_compensated_corrected')
-        write.FCS(x = fcs_dt, filename = paste0(inURL,annot_tmp$file[rw_],'.fcs'))      # matrix of cells/events in this well
+        keyword(fcs_dt)[['$FIL']] = paste0(annot_tmp$file[rw_],'_compensated_corrected')      # updating $FIL keyword
+        write.FCS(x = fcs_dt, filename = paste0(inURL,annot_tmp$file[rw_],'.fcs'))            # matrix of cells/events in this well
       }
       
       # writing MFI matrices
@@ -278,21 +280,21 @@ step3_signal_drift_correction = function(chnls_, CORRECT, drctn_, FITPLOT, HEATP
   
   if(FITPLOT)
   {
-    dt_ = list()                # matrix with these columns: MFI, plate and channel
+    dt_ = list()                # a matrix with these columns: MFI, plate and channel
     k_ = 1
     for(plate_ in plates_)      # for each plate
     {
       for (chnl_ in chnls_)     # for each channel
       {
-        tmp = if(drctn_ == 'column'){ matrix(data = MFI_mats[[plate_]][[chnl_]], ncol = 1, nrow = length(MFI_mats[[plate_]][[chnl_]]), byrow = F)[,,drop = T]/1e4 }else     # reading matrix column-wise
-                                    { matrix(data = MFI_mats[[plate_]][[chnl_]], ncol = 1, nrow = length(MFI_mats[[plate_]][[chnl_]]), byrow = T)[,,drop = T]/1e4 }         # reading matrix row-wise
+        tmp = if(drctn_ == 'column'){ matrix(data = MFI_mats[[plate_]][[chnl_]], ncol = 1, nrow = length(MFI_mats[[plate_]][[chnl_]]), byrow = F)[,,drop = T]/1e4 }else     # reading MFI matrix column-wise
+                                    { matrix(data = MFI_mats[[plate_]][[chnl_]], ncol = 1, nrow = length(MFI_mats[[plate_]][[chnl_]]), byrow = T)[,,drop = T]/1e4 }         # reading MFI matrix row-wise
         dt_[[k_]] = data.frame(MFI = tmp, plate = as.character(plate_), channel = chnl_, stringsAsFactors = T)
         k_ = k_ + 1
       }
     }
     dt_ = do.call(what = rbind, args = dt_)
     
-    # plotting all plates on one PDF page per channel
+    # plotting all dot plots on one PDF page per channel
     
     if(CORRECT) { pdf(file = paste0(outURL,'/MFI_fit_inter-plate_corrected.pdf')) }else{ pdf(file = paste0(outURL,'/MFI_fit_inter-plate_no_correction.pdf')) }
     for(chnl_ in chnls_)      # for each channel 
@@ -315,7 +317,7 @@ step3_signal_drift_correction = function(chnls_, CORRECT, drctn_, FITPLOT, HEATP
   
   if(HEATPLOT)
   {
-    numOfPlates = length(plates_)
+    numOfPlates = length(plates_)                 # number of plates in this assay
     nrow_ = floor(sqrt(numOfPlates))              # number of rows per page
     ncol_ = ceiling(numOfPlates/nrow_)            # number of columns per page
     width_ = height_ = max(nrow_, ncol_)*8.45     # every heatmap takes up this width/height in inches
@@ -325,7 +327,7 @@ step3_signal_drift_correction = function(chnls_, CORRECT, drctn_, FITPLOT, HEATP
       fl_ = paste0(outURL,'/plates_heatmap_no_correction.pdf')
       pdf(file = fl_, width = width_, height = height_)
 
-      for(chnl_ in chnls_)      # plots plates for each channel on pne PDF page
+      for(chnl_ in chnls_)      # plots plates for each channel on one PDF page
       {
         plot_list = list()
         
@@ -334,19 +336,18 @@ step3_signal_drift_correction = function(chnls_, CORRECT, drctn_, FITPLOT, HEATP
         max_ = 0
         for(plate_ in 1:numOfPlates)
         {
-          max_tmp = max(MFI_mats[[plate_]][[chnl_]]/1e4)     # palte plate_ showing MFI of channel chnl_
+          max_tmp = max(MFI_mats[[plate_]][[chnl_]]/1e4)
           if(max_ < max_tmp) { max_ = max_tmp }
         }
         
         for(plate_ in 1:numOfPlates)      # plotting each plate for current channel
         {
-          dt_mat = MFI_mats[[plate_]][[chnl_]]/1e4                          # palte plate_ showing MFI of channel chnl_
+          dt_mat = MFI_mats[[plate_]][[chnl_]]/1e4
           dt_mat = rbind(dt_mat, MAX = c(max_, rep(0,ncol(dt_mat)-1)))      # last row of each plate heatmap contain max value across all plates
           
           # normalizing heatmap's color palette
           
           dt_ = unique(as.numeric(dt_mat))
-          
           IQR_ = IQR(dt_)
           quartiles_ = quantile(dt_, probs = c(.25, .75))
           lowWhisker_ = max(min(dt_), quartiles_[1] - IQR_*1.5)
@@ -426,7 +427,7 @@ step3_signal_drift_correction = function(chnls_, CORRECT, drctn_, FITPLOT, HEATP
       fl_ = paste0(outURL,'/plates_heatmap_correction.pdf')
       pdf(file = fl_, width = width_, height = height_)
       
-      for(chnl_ in chnls_)
+      for(chnl_ in chnls_)      # plots plates for each channel on one PDF page
       {
         plot_list = list()
     

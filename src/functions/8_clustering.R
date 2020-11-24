@@ -1,3 +1,12 @@
+# This module is a wrapper of compaRe::clustering which clusters samples usign a graphical model for a given set of negative controls.
+# This module outputs sample table, sample graph, dispersion graph, clique-community table, dispersion map and clique heatmap.
+# This module also outputs compare_clustering.RData for cutom plot generation.
+# Input arguments are:
+#   chnls_ (quoted string): channel (not marker) names like 'chnl1,chn2,chnl3'
+#   nn_ (integer): number of nearest neighbors in UMAP like 5
+#   inURL (string): address to input data files like ../data
+#   outURL (string): address to output result like ../out
+# Algorithm designed and implemented by Mori C.H., mor.chalabi@gmail.com
 
 require(compaRe)
 require(flowCore)
@@ -7,11 +16,6 @@ require(ggrepel)
 require(pheatmap)
 require(igraph)
 
-# chnls_
-# nn_
-# inURL
-# outURL
-#
 step8_clustering = function(chnls_, nn_, inURL = '../data/', outURL = '../out/')
 {
   # STEP 1: Reading in files ####
@@ -39,7 +43,7 @@ step8_clustering = function(chnls_, nn_, inURL = '../data/', outURL = '../out/')
                              smpl_graph = T,
                              disp_graph = T)
   
-  # STEP 4: Adding things to drug tables ####
+  # STEP 4: Adding things to drug table ####
   message('Adding information to drug tables')
   
   smpl_tbl = out_$samples_table
@@ -225,6 +229,7 @@ step8_clustering = function(chnls_, nn_, inURL = '../data/', outURL = '../out/')
                              n_threads = 3))
   colnames(umap_) = paste0('UMAP',1:(ncol(centroids_)-1))
   rownames(umap_) = rownames(centroids_)
+  out_$umap_ = umap_     # updating out_ with umap info
   
   # write out the unscaled centroids_ table
   write.table(x = centroids_, file = paste0(outURL,'/Centroids.tsv'), sep = '\t', col.names = T, quote = F, row.names = T)
@@ -292,9 +297,8 @@ step8_clustering = function(chnls_, nn_, inURL = '../data/', outURL = '../out/')
   }
 
   
-  # STEP 10: Output out_ and umap_, files needed to generate GUI elements ####
+  # STEP 10: Outputting out_ for GUI ####
   save(out_, file = paste0(outURL, '/compare_clustering.RData'))
-  write.table(x = umap_, file = paste0(outURL,'/UMAP.tsv'), sep = '\t', col.names = T, quote = F, row.names = T)
   
   return(NULL)
 }
