@@ -1,9 +1,11 @@
+# This module generates a heatmap of the similarity matrix. Color and size of each cell of the heatmap represents the amount of similarity.
+# Wells are sorted in ascending order of total similarity so that hits should be first listed from left to right and top down.
+# Input arguments are:
+#   outURL (string): address to output result like ../out
+# Algorithm designed and implemented by Mori C.H., mor.chalabi@gmail.com
 
 require(corrplot)
 
-# outURL
-#
-#
 step6_similarity_matrix_heatmap = function(outURL = '../out/')
 {
   # STEP 1: Reading in similarity matrix ####

@@ -1,12 +1,13 @@
-# This scripts is a wrapper of compaRe::compaRe which measures similarity between two samples using a mass-aware gridding (hypercubes).
+# This module is a wrapper of compaRe::compaRe which measures similarity between two samples using a mass-aware gridding (hypercubes).
 # Input files are first made comparable using either log-transform (for high-throughput mass/flow cytometry) or robust z-score (for high throughput/content screening).
 # Input arguments are:
-#   HTS_HCS: is input data from high throughput/content screening?
-#   chnls_: channel (not marker) names
-#   n_: number of dimension divisions
-#   cor_: number of CPU cores
-#   inURL: address to iput data files
-#   outURL: address to output result
+#   HTS_HCS (boolean): is input data from high throughput/content screening? like T/TRUE/true or F/FALSE/false
+#   chnls_ (quoted string): channel (not marker) names like 'chnl1,chn2,chnl3'
+#   n_ (integer): the number by which each dimension is divided like 3
+#   cor_ (integer): number of CPU cores like 32
+#   inURL (string): address to input data files like ../data
+#   outURL (string): address to output result like ../out
+
 # Algorithm designed and implemented by Mori C.H., mor.chalabi@gmail.com
 
 require(compaRe)
@@ -80,8 +81,3 @@ step5_similarity_matrix_generator = function(HTS_HCS, chnls_, n_, cor_, inURL = 
   
   return(NULL)
 }
-
-chnls_ = c('Nd142','Nd144','Nd148','Sm154','Eu151','Gd158','Gd160','Dy162','Dy164','Er166','Er167','Er170','Yb171','Yb174','Yb176','Lu175')
-n_ = 4
-step5_similarity_matrix_generator(HTS_HCS = F, chnls_ = chnls_, n_ = n_, cor_ = 3, inURL = '../data/', outURL = '../out/')
-
