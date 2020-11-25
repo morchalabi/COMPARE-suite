@@ -6,7 +6,7 @@
 
 require(corrplot)
 
-step6_similarity_matrix_heatmap = function(outURL = '../out/')
+step6_similarity_matrix_heatmap = function(outURL)
 {
   # STEP 1: Reading in similarity matrix ####
   

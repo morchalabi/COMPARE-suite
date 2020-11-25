@@ -8,7 +8,6 @@
 #   HEATPLOT (boolean): should the plate heatmaps be output? like T/TRUE/true or F/FALSE/false
 #   inURL (string): address to input data files like ../data
 #   outURL (string): address to output result like ../out
-
 # Algorithm designed and implemented by Mori C.H., mor.chalabi@gmail.com
 
 require(flowCore)
@@ -16,7 +15,7 @@ require(pheatmap)
 require(gridExtra)
 require(ggplot2)
 
-step4_viability_correction = function(CORRECT, drctn_, FITPLOT, HEATPLOT, inURL = '../data/', outURL = '../out/')
+step4_viability_correction = function(CORRECT, drctn_, FITPLOT, HEATPLOT, inURL, outURL)
 {
   # STEP 1: Computing cell viabilities ####
   

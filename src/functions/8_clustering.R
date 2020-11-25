@@ -16,7 +16,7 @@ require(ggrepel)
 require(pheatmap)
 require(igraph)
 
-step8_clustering = function(chnls_, nn_, inURL = '../data/', outURL = '../out/')
+step8_clustering = function(chnls_, nn_, inURL, outURL)
 {
   # STEP 1: Reading in files ####
   
