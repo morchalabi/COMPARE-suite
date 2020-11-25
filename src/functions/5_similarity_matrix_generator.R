@@ -7,7 +7,6 @@
 #   cor_ (integer): number of CPU cores like 32
 #   inURL (string): address to input data files like ../data
 #   outURL (string): address to output result like ../out
-
 # Algorithm designed and implemented by Mori C.H., mor.chalabi@gmail.com
 
 require(compaRe)
