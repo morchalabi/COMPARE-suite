@@ -4,13 +4,13 @@
 # It can only import csv (comma delimited), tsv (tab delimited) and FCS (mass/flow cytometry standard) files.
 # csv and tsv file types are coerced to FCS.
 # Input arguments are:
-#   inURL (string): address to data files like ../data
 #   min_events (integer): min number of events (like cells or beads) to call a file valid like 1000 or 1e3
+#   inURL (string): address to data files like ../data
 # Algorithm designed and implemented by Mori C.H., mor.chalabi@gmail.com
 
 require(flowCore)
 
-step1_import = function(inURL = '../data/', min_events)
+step1_import = function(min_events, inURL)
 {
   # STEP 1: Reading in data files ####
   

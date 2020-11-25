@@ -14,7 +14,7 @@ require(compaRe)
 require(flowCore)
 require(parallel)
 
-step5_similarity_matrix_generator = function(HTS_HCS, chnls_, n_, cor_, inURL = '../data/', outURL = '../out/')
+step5_similarity_matrix_generator = function(HTS_HCS, chnls_, n_, cor_, inURL, outURL)
 {
   # STEP 1: Making similarity matrix ####
   

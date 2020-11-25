@@ -17,7 +17,7 @@ require(pheatmap)
 require(gridExtra)
 require(ggplot2)
 
-step3_signal_drift_correction = function(chnls_, CORRECT, drctn_, FITPLOT, HEATPLOT, inURL = '../data/', outURL = '../out/')
+step3_signal_drift_correction = function(chnls_, CORRECT, drctn_, FITPLOT, HEATPLOT, inURL, outURL)
 {
   # STEP 1: Computing MFIs ####
   
