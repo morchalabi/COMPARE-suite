@@ -48,7 +48,7 @@ step4_viability_correction = function(CORRECT, drctn_, FITPLOT, HEATPLOT, inURL,
     fcs_flNms = list()                                                                # a list to store well file names
     for(rw_ in 1:nrow(annot_tmp))
     {
-      fcs_dt = read.FCS(filename = paste0(inURL,annot_tmp$file[rw_],'.fcs'), transformation = F, truncate_max_range = F)
+      fcs_dt = read.FCS(filename = paste0(inURL,'/',annot_tmp$file[rw_],'.fcs'), transformation = F, truncate_max_range = F)
   
       # computing offset from beginning of plate matrix
       
@@ -177,7 +177,7 @@ step4_viability_correction = function(CORRECT, drctn_, FITPLOT, HEATPLOT, inURL,
       cols_ = sort(unique(annot_tmp$column))            # number of rows in current plate
       for(rw_ in 1:nrow(annot_tmp))                     # for each well on current plate
       {
-        fcs_dt = read.FCS(filename = paste0(inURL,annot_tmp$file[rw_],'.fcs'), transformation = F, truncate_max_range = F)     # event data of current well
+        fcs_dt = read.FCS(filename = paste0(inURL,'/',annot_tmp$file[rw_],'.fcs'), transformation = F, truncate_max_range = F)     # event data of current well
         
         # computing offset from beginning of plate matrix
         
@@ -199,7 +199,7 @@ step4_viability_correction = function(CORRECT, drctn_, FITPLOT, HEATPLOT, inURL,
         # writing corrected fcs files
         
         keyword(fcs_dt)[['$FIL']] = paste0(annot_tmp$file[rw_],'_compensated_corrected_corrected')      # updating $FIL keyword
-        write.FCS(x = fcs_dt, filename = paste0(inURL,annot_tmp$file[rw_],'.fcs'))                      # matrix of events in this well
+        write.FCS(x = fcs_dt, filename = paste0(inURL,'/',annot_tmp$file[rw_],'.fcs'))                      # matrix of events in this well
       }
       
       # writing viability matrices

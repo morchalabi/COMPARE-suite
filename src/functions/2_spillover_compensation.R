@@ -21,7 +21,7 @@ step2_spillover_compensation = function(inURL)
     fl_ = paste0(annot_$file[rw_],'.fcs')
     message('Reading ',fl_)
   
-    dt_ = read.FCS(filename = paste0(inURL,fl_), transformation = F, truncate_max_range = T)
+    dt_ = read.FCS(filename = paste0(inURL,'/',fl_), transformation = F, truncate_max_range = T)
   
     keywords_ = keyword(dt_)
     compMat = keywords_[grepl(x = names(keywords_), pattern = 'SPILL|COMP', ignore.case = F)]
@@ -44,7 +44,7 @@ step2_spillover_compensation = function(inURL)
 
       # writing compensated fcs file
 
-      write.FCS(x = dt_, filename = paste0(inURL,fl_))
+      write.FCS(x = dt_, filename = paste0(inURL,'/',fl_))
     }
   }
   

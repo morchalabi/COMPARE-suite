@@ -55,7 +55,7 @@ step8_clustering = function(chnls_, nn_, inURL, outURL)
     wells_drugs$sim_vs_all[rowIndx] = smpl_tbl$sim_vs_all[row_]
     wells_drugs$sim_vs_control[rowIndx] = smpl_tbl$sim_vs_control[row_]
     wells_drugs$community[rowIndx] = smpl_tbl$community[row_]
-    wells_drugs$live_cells[rowIndx] = read.FCS(filename = paste0(inURL,smpl_tbl$sample[row_],'.fcs'),transformation = F, truncate_max_range = F)@description$viability
+    wells_drugs$live_cells[rowIndx] = read.FCS(filename = paste0(inURL,'/',smpl_tbl$sample[row_],'.fcs'),transformation = F, truncate_max_range = F)@description$viability
   }
   wells_drugs = wells_drugs[order(wells_drugs$drug, wells_drugs$concentration, decreasing = T),c("drug","concentration","control","sim_vs_control","community","sim_vs_all","live_cells","file")]
   
@@ -209,7 +209,7 @@ step8_clustering = function(chnls_, nn_, inURL, outURL)
     dt_ = list()
     for(smpl_ in smpls_)
     {
-      tmp_ = read.FCS(filename = paste0(inURL,smpl_,'.fcs'), transformation = F, truncate_max_range = F)@exprs[,chnls_, drop = F]
+      tmp_ = read.FCS(filename = paste0(inURL,'/',smpl_,'.fcs'), transformation = F, truncate_max_range = F)@exprs[,chnls_, drop = F]
       tmp_[which(tmp_ < 0 | is.na(tmp_) | is.nan(tmp_))] = 0
       tmp_ = log(tmp_+1)
       dt_[[smpl_]] = tmp_
