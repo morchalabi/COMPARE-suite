@@ -56,7 +56,7 @@ if(INVALID)
           'Rscript run_5_similarity_matrix_generator.R \\\n',
           '-HTS_HCS FALSE \\\n',
           '-chnl \'VL6-H,BL5-H,RL1-H\' \\\n',
-          '-n 5 \\\n',
+          '-n 3 \\\n',
           '-cpu 3 \\\n',
           '-inURL ../data \\\n',
           '-outURL ../out\n')
