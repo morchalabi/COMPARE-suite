@@ -33,12 +33,12 @@ step1_import = function(min_events, inURL)
     
     if(fmt_ == 'fcs')
     {
-      dt_ = tryCatch(expr = read.FCS(filename = paste0(inURL,fl_), transformation = F, truncate_max_range = T)@exprs,
+      dt_ = tryCatch(expr = read.FCS(filename = paste0(inURL,'/',fl_), transformation = F, truncate_max_range = T)@exprs,
                      error = function(err) { return( flowFrame(exprs = matrix(data = 0,dimnames = list('row','column')))@exprs ) })     # if a fcs file is broken, flowCore throws exception
     }else
     {
       sep_ = if(fmt_ == 'csv') {','}else{'\t'}
-      dt_ = tryCatch(expr = read.delim(file = paste0(inURL,fl_), header = T, sep = sep_, quote = "", as.is = T, check.names = F, na.strings = c('NA','N/A','na','n/a','','.'), stringsAsFactors = F),
+      dt_ = tryCatch(expr = read.delim(file = paste0(inURL,'/',fl_), header = T, sep = sep_, quote = "", as.is = T, check.names = F, na.strings = c('NA','N/A','na','n/a','','.'), stringsAsFactors = F),
                      error = function(err) { return( matrix(data = 0, dimnames = list('row','column')) ) })
     }
     
@@ -50,10 +50,10 @@ step1_import = function(min_events, inURL)
       system2(command = 'mkdir',args = paste0(inURL,'/REMOVED'))
       if(.Platform$OS.type == 'unix')
       {
-        system2(command = 'mv',args = c(paste0(inURL,fl_),paste0(inURL,'/REMOVED/')))
+        system2(command = 'mv',args = c(paste0(inURL,'/',fl_),paste0(inURL,'/REMOVED/')))
       }else
       {
-        system2(command = 'move',args = c(paste0(inURL,fl_),paste0(inURL,'/REMOVED/')))
+        system2(command = 'move',args = c(paste0(inURL,'/',fl_),paste0(inURL,'/REMOVED/')))
       }
       
       # updating annotation file so that it only contains info for valid files
@@ -68,7 +68,7 @@ step1_import = function(min_events, inURL)
       {
         dt_ = flowFrame(exprs = matrix(data = as.matrix(dt_), nrow = nrow(dt_), ncol = ncol(dt_), dimnames = list(rownames(dt_),colnames(dt_))))
         keyword(dt_)[['$FIL']] = paste0(annot_$file[rw_],'.fcs')
-        write.FCS(x = dt_, filename = paste0(inURL, dt_@description$`$FIL`))
+        write.FCS(x = dt_, filename = paste0(inURL,'/', dt_@description$`$FIL`))
       }
     }
   }

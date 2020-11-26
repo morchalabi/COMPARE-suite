@@ -32,7 +32,7 @@ step5_similarity_matrix_generator = function(HTS_HCS, chnls_, n_, cor_, inURL, o
   {
     # step 1.1: reading in 1st sample
   
-    smpl1 = flowCore::read.FCS(filename = paste0(inURL,fls_[row_]), transformation = F, truncate_max_range = F)     # input must be untransformed FCS file
+    smpl1 = flowCore::read.FCS(filename = paste0(inURL,'/',fls_[row_]), transformation = F, truncate_max_range = F)     # input must be untransformed FCS file
     smpl1 = smpl1@exprs[,chnls_, drop = F]
     if(nrow(smpl1) == 0)
     {
@@ -49,7 +49,7 @@ step5_similarity_matrix_generator = function(HTS_HCS, chnls_, n_, cor_, inURL, o
               {
                 # step 1.2: reading in 2nd sample
   
-                smpl2 = flowCore::read.FCS(filename = paste0(inURL,fls_[col_]), transformation = F, truncate_max_range = F)
+                smpl2 = flowCore::read.FCS(filename = paste0(inURL,'/',fls_[col_]), transformation = F, truncate_max_range = F)
                 smpl2 = smpl2@exprs[,chnls_, drop = F]
                 if(nrow(smpl2) == 0)
                 {

@@ -58,7 +58,7 @@ step3_signal_drift_correction = function(chnls_, CORRECT, drctn_, FITPLOT, HEATP
     fcs_flNms = character()     # all fcs file names
     for(rw_ in 1:nrow(annot_tmp))
     {
-      fcs_dt = read.FCS(filename = paste0(inURL,annot_tmp$file[rw_],'.fcs'), transformation = F, truncate_max_range = F)
+      fcs_dt = read.FCS(filename = paste0(inURL,'/',annot_tmp$file[rw_],'.fcs'), transformation = F, truncate_max_range = F)
   
       # computing offset from the beginning of the MFI matrix
       
@@ -150,7 +150,7 @@ step3_signal_drift_correction = function(chnls_, CORRECT, drctn_, FITPLOT, HEATP
       for(offset_ in 1:length(fcs_dt_ls))
       {
         if(is.null(fcs_dt_ls[[offset_]])) { next() }
-        write.FCS(x = fcs_dt_ls[[offset_]], filename = paste0(inURL,fcs_flNms[offset_],'.fcs'))     # matrix of events in this well
+        write.FCS(x = fcs_dt_ls[[offset_]], filename = paste0(inURL,'/',fcs_flNms[offset_],'.fcs'))     # matrix of events in this well
       }
     }
     rm(fcs_dt_ls)
@@ -236,7 +236,7 @@ step3_signal_drift_correction = function(chnls_, CORRECT, drctn_, FITPLOT, HEATP
       cols_ = sort(unique(annot_tmp$column))            # number of columns in current plate
       for(rw_ in 1:nrow(annot_tmp))                     # for each well on the current plate
       {
-        fcs_dt = read.FCS(filename = paste0(inURL,annot_tmp$file[rw_],'.fcs'), transformation = F, truncate_max_range = F)      # event data of current well
+        fcs_dt = read.FCS(filename = paste0(inURL,'/',annot_tmp$file[rw_],'.fcs'), transformation = F, truncate_max_range = F)      # event data of current well
         
         # extracting row and column indices of current well
         
@@ -264,7 +264,7 @@ step3_signal_drift_correction = function(chnls_, CORRECT, drctn_, FITPLOT, HEATP
         # writing corrected fcs files
         
         keyword(fcs_dt)[['$FIL']] = paste0(annot_tmp$file[rw_],'_compensated_corrected')      # updating $FIL keyword
-        write.FCS(x = fcs_dt, filename = paste0(inURL,annot_tmp$file[rw_],'.fcs'))            # matrix of cells/events in this well
+        write.FCS(x = fcs_dt, filename = paste0(inURL,'/',annot_tmp$file[rw_],'.fcs'))            # matrix of cells/events in this well
       }
       
       # writing MFI matrices
