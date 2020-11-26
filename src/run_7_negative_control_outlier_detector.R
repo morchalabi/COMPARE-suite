@@ -4,7 +4,7 @@
 #   outURL (string): address to output result like ../out
 # Algorithm designed and implemented by Mori C.H., mor.chalabi@gmail.com
 
-source("functions/7_negative_control_outlier_detector")
+source("functions/7_negative_control_outlier_detector.R")
 
 args_ = commandArgs(trailingOnly = T)
 
