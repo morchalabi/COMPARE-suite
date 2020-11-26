@@ -55,7 +55,7 @@ if(INVALID)
   message('\nInvalid call. Usage:\n',
           'Rscript run_5_similarity_matrix_generator.R \\\n',
           '-HTS_HCS FALSE \\\n',
-          '-chnl \'SSC-H,VL1-H,VL6-H,BL1-H,BL3-H,BL5-H,RL1-H\' \\\n',
+          '-chnl \'VL6-H,BL5-H,RL1-H\' \\\n',
           '-n 5 \\\n',
           '-cpu 3 \\\n',
           '-inURL ../data \\\n',
