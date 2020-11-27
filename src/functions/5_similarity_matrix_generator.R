@@ -1,7 +1,6 @@
 # This module is a wrapper of compaRe::compaRe which measures similarity between two samples using a mass-aware gridding (hypercubes).
 # Input files are first made comparable using either log-transform (for high-throughput mass/flow cytometry) or robust z-score (for high throughput/content screening).
 # Input arguments are:
-#   HTS_HCS (boolean): is input data from high throughput/content screening? like T/TRUE/true or F/FALSE/false
 #   chnls_ (quoted string): channel (not marker) names like 'chnl1,chn2,chnl3'
 #   n_ (integer): the number by which each dimension is divided like 3
 #   cor_ (integer): number of CPU cores like 32
@@ -13,7 +12,7 @@ require(compaRe)
 require(flowCore)
 require(parallel)
 
-step5_similarity_matrix_generator = function(HTS_HCS, chnls_, n_, cor_, inURL, outURL)
+step5_similarity_matrix_generator = function(chnls_, n_, cor_, inURL, outURL)
 {
   # STEP 1: Making similarity matrix ####
 
@@ -39,9 +38,9 @@ step5_similarity_matrix_generator = function(HTS_HCS, chnls_, n_, cor_, inURL, o
       simMat[row_, ] = simMat[ , row_] = NA
       next()
     }
-    smpl1[ which(smpl1 < 0 | is.nan(smpl1) | is.na(smpl1)) ] = 0                                                                                      # cells zero in all channels are removed
-    smpl1 = smpl1[which(!apply(X = smpl1, MARGIN = 1, FUN = max) %in% 0),]                                                                            # cells zero in all channels are removed
-    smpl1 = if(HTS_HCS){ apply(X = smpl1, MARGIN = 2, FUN = function(chnl_) { return((chnl_-median(chnl_))/mad(chnl_))}) }else{ log(smpl1 + 1) }      # transforming
+    smpl1[ which(smpl1 < 0 | is.nan(smpl1) | is.na(smpl1)) ] = 0                # cells zero in all channels are removed
+    smpl1 = smpl1[which(!apply(X = smpl1, MARGIN = 1, FUN = max) %in% 0),]      # cells zero in all channels are removed
+    smpl1 = log(smpl1 + 1)                                                      # transforming
 
     # for each column of simMat in parallel
 
@@ -57,7 +56,7 @@ step5_similarity_matrix_generator = function(HTS_HCS, chnls_, n_, cor_, inURL, o
                 }
                 smpl2[ which(smpl2 < 0 | is.nan(smpl2) | is.na(smpl2)) ] = 0
                 smpl2 = smpl2[which(!apply(X = smpl2, MARGIN = 1, FUN = max) %in% 0),]
-                smpl2 = if(HTS_HCS){ apply(X = smpl2, MARGIN = 2, FUN = function(chnl_) { return((chnl_-median(chnl_))/mad(chnl_))}) }else{ log(smpl2 + 1) }
+                smpl2 = log(smpl2 + 1)
 
                 # Step 1.3: measuring similarity
 
