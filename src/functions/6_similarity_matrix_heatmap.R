@@ -1,5 +1,6 @@
-# This module generates a heatmap of the similarity matrix. Color and size of each cell of the heatmap represents the amount of similarity.
-# Wells are sorted in ascending order of total similarity so that hits should be first listed from left to right and top down.
+# This module generates a heatmap of the similarity matrix. Color and size of each ball represents the amount of similarity: blue:high, red:low.
+# Values are min-max normalized between [-1,1], then raised to 3 to widen the dynamic range.
+# Wells are sorted in ascending order of total similarity so that hits (impotent samples) should be listed first from left to right and top down.
 # Input arguments are:
 #   outURL (string): address to output result like ../out
 # Algorithm designed and implemented by Mori C.H., mor.chalabi@gmail.com
@@ -12,18 +13,13 @@ step6_similarity_matrix_heatmap = function(outURL)
   
   simMat_ = as.matrix(read.table(file = paste0(outURL,'/simMat.txt'), header = T, as.is = T, check.names = F, sep = '\t', stringsAsFactors = F))
   
-  # STEP 2: Scaling similarity values into [0,1] range ####
+  # STEP 2: Scaling similarity values between [-1,1] ####
   
-  diag(simMat_) = 0
-  for(j_ in 1:nrow(simMat_))
-  {
-    r_ = simMat_[j_,-j_]
-    simMat_[j_,-j_] = (2*(r_-min(r_))/diff(range(r_)))-1
-  }
-  simMat_ = simMat_^3      # transforming sim values to make a wider dynamic range
+  diag(simMat_) = min(simMat_)
+  simMat_ = ((2*(simMat_-min(simMat_))/diff(range(simMat_)))-1)^3     # min-max normalization; raised to 3 to widen the dynamic range
   
   # ordering rows and cols by total sum
-  ids_ = order(apply(X = simMat_, MARGIN = 2, FUN = sum))
+  ids_ = order(rowSums(simMat_))
   simMat_ = simMat_[ids_, ids_]
   
   # STEP 3: Plotting ####
@@ -34,7 +30,7 @@ step6_similarity_matrix_heatmap = function(outURL)
   jpeg(filename = paste0(outURL,'/simMat_heatmap.jpeg'), width = width_, height = heigth_, units = 'cm',res = res_)
   corrplot(corr = simMat_,
            is.corr = T,
-           diag = T,
+           diag = F,
            cl.ratio = 0.1, cl.length = 3, cl.cex = 0.1*width_,
            method = "circle",                   # uses circles to represent sim values
            col = cols_,                         # color of values

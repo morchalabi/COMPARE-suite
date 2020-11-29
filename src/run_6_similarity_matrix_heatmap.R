@@ -1,5 +1,6 @@
-# This module generates a heatmap of the similarity matrix. Color and size of each cell of the heatmap represents the amount of similarity.
-# Wells are sorted in ascending order of total similarity so that hits should be first listed from left to right and top down.
+# This module generates a heatmap of the similarity matrix. Color and size of each ball represents the amount of similarity: blue:high, red:low.
+# Values are min-max normalized between [-1,1], then raised to 3 to widen the dynamic range.
+# Wells are sorted in ascending order of total similarity so that hits (impotent samples) should be listed first from left to right and top down.
 # Input arguments are:
 #   outURL (string): address to output result like ../out
 # Algorithm designed and implemented by Mori C.H., mor.chalabi@gmail.com
