@@ -1,6 +1,6 @@
-# This module is a wrapper of compaRe::clustering which clusters samples usign a graphical model for a given set of negative controls.
+# This module is a wrapper of compaRe::clustering which clusters samples using a graphical model for a given set of negative controls.
 # This module outputs sample table, sample graph, dispersion graph, clique-community table, dispersion map and clique heatmap.
-# This module also outputs compare_clustering.RData for cutom plot generation.
+# This module also outputs compare_clustering.RData for custom plot generation.
 # Input arguments are:
 #   chnls_ (quoted string): channel (not marker) names like 'chnl1,chn2,chnl3'
 #   nn_ (integer): number of nearest neighbors in UMAP like 5
@@ -232,7 +232,7 @@ step8_clustering = function(chnls_, nn_, inURL, outURL)
   out_$umap_ = umap_     # updating out_ with umap info
   
   # write out the unscaled centroids_ table
-  write.table(x = centroids_, file = paste0(outURL,'/Centroids.tsv'), sep = '\t', col.names = T, quote = F, row.names = T)
+  write.table(x = cbind(Clique = rownames(centroids_),centroids_), file = paste0(outURL,'/Centroids.tsv'), sep = '\t', col.names = T, quote = F, row.names = F)
   
   # plotting
   # coloring cliques by MFIs
