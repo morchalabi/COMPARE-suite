@@ -1,6 +1,6 @@
-# This module is a wrapper of compaRe::clustering which clusters samples usign a graphical model for a given set of negative controls.
+# This module is a wrapper of compaRe::clustering which clusters samples using a graphical model for a given set of negative controls.
 # This module outputs sample table, sample graph, dispersion graph, clique-community table, dispersion map and clique heatmap.
-# This module also outputs compare_clustering.RData for cutom plot generation.
+# This module also outputs compare_clustering.RData for custom plot generation.
 # Input arguments are:
 #   chnls_ (quoted string): channel (not marker) names like 'chnl1,chn2,chnl3'
 #   nn_ (integer): number of nearest neighbors in UMAP like 5
