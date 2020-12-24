@@ -15,7 +15,7 @@ require(ComplexHeatmap)
 require(writexl)
 
 # load the workflow functions into global environment
-source("functions/1_overview.R")
+source("functions/1_import.R")
 source("functions/2_spillover_compensation.R")
 source("functions/3_signal_drift_correction.R")
 source("functions/4_viability_correction.R")
@@ -91,7 +91,7 @@ ui <- navbarPage(
         fluidRow(
           column(
             4,
-            div(checkboxInput("include_step1", "1 - Overview", value = FALSE),
+            div(checkboxInput("include_step1", "1 - Import", value = FALSE),
                 style = "font-size:113%; color:#333333"),
           ), # end column
           column(
@@ -130,13 +130,21 @@ ui <- navbarPage(
             bsPopover("uio_channels_step3", title = NULL, content = "Channels to use for signal drift correction",
                       placement = "bottom", trigger = "hover"),
             
-            fluidRow(
+            # fluidRow(
               column(
                 4,
                 div(uiOutput("uio_correct_step3"), style = "font-size:95%")
                 #bsPopover("uio_correct_step3", title = NULL, content = "Whether to perform signal drift correction",
                 #          placement = "bottom", trigger = "hover")
               ), # end column
+            
+              column(
+                6,
+                div(uiOutput("uio_drctn_step3"), style = "font-size:95%"),
+                bsPopover("uio_drctn_step3", title = NULL, content = "Direction of bias, either column or row",
+                          placement = "bottom", trigger = "hover"),
+                ), # end column
+            
               column(
                 4,
                 div(uiOutput("uio_fitplot_step3"), style = "font-size:95%")
@@ -149,7 +157,7 @@ ui <- navbarPage(
                 #bsPopover("uio_heatplot_step3", title = NULL, content = "Whether to plot plate heatmaps",
                 #          placement = "bottom", trigger = "hover")
               ) # end column
-            ) # end fluidRow
+            # ) # end fluidRow
             
           ) # end column
         ), # end fluidRow
@@ -996,6 +1004,12 @@ server <- function(input, output, session) {
         checkboxInput("correct_step3", "Perform correction", value = TRUE)
       }) # end output$uio_correct_step3
       
+      output$uio_drctn_step3 <- renderUI({
+        div(textInput("drctn_step3", "Direction of bias:", width = "100%",
+                      placeholder = "either column or row"),
+            style = "font-size:95%")
+      }) # end out$uio_channels_step3
+      
       output$uio_fitplot_step3 <- renderUI({
         checkboxInput("fitplot_step3", "Plot regressed line", value = TRUE)
       }) # end output$uio_fitplot_step3
@@ -1008,6 +1022,7 @@ server <- function(input, output, session) {
       
       output$uio_channels_step3 <- renderUI({NULL})
       output$uio_correct_step3 <- renderUI({NULL})
+      output$uio_drctn_step3 <- renderUI({NULL})
       output$uio_fitplot_step3 <- renderUI({NULL})
       output$uio_heatplot_step3 <- renderUI({NULL})
       
@@ -1175,8 +1190,8 @@ server <- function(input, output, session) {
       # run with call handlers to redirect messages
       withCallingHandlers({
         
-        step1_overview(min_events = input$min_events,
-                       inURL = paths()$data)
+        step1_import(min_events = input$min_events,
+                    inURL = paths()$data)
         
       },
       
@@ -1235,6 +1250,7 @@ server <- function(input, output, session) {
       
       validate(need(strsplit(input$channels_step3, split = '[,]')[[1]], message = FALSE))
       validate(need(input$correct_step3, message = FALSE))
+      validate(need(input$input$drctn_step3, message = FALSE))
       validate(need(input$fitplot_step3, message = FALSE))
       validate(need(input$heatplot_step3, message = FALSE))
       
@@ -1243,11 +1259,11 @@ server <- function(input, output, session) {
         
         step3_signal_drift_correction(chnls_ = strsplit(input$channels_step3, split = '[,]')[[1]],
                                       CORRECT = input$correct_step3,
+                                      drctn_ = input$drctn_step3,
                                       FITPLOT = input$fitplot_step3,
                                       HEATPLOT = input$heatplot_step3,
                                       inURL = paths()$data,
                                       outURL = paths()$out)
-        
       },
       
       message = function(m) {
