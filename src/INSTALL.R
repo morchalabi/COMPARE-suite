@@ -130,5 +130,6 @@ if(!requireNamespace("ComplexHeatmap"))
 
 if(!requireNamespace("compaRe"))
 {
-  devtools::install_github(repo = 'morchalabi/compaRe', ref = 'master', dependencies = T)
+  devtools::install_github(repo = 'morchalabi/compaRe', ref = 'master', dependencies = T, force = T,
+                           auth_token = 'fbf87d0e0eea8481eda577f69f649938dd9fe968')
 }
