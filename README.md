@@ -1,5 +1,5 @@
 # COMPARE-suite
-COMPARE-suite is a novel ultra-fast software suite (pipeline) to analyze small scale to high-throughput multiparametric screenings in drug discovery and personalized medicine. It
+COMPARE-suite is a novel ultra-fast software suite (pipeline) to analyze small scale to high-throughput multiparametric screenings like drug discovery and personalized medicine. It
 1. consists of several modules for experiment quality control, bias correction, similarity measurement, clustering and visualization
 1. can process the output of any screening technology like mass cytometer, flow cytometer and high-content microscope in both text or binary data format
 1. is data-size independent, can effectively circumvent batch effect, needs neither dimension reduction nor subsampling
