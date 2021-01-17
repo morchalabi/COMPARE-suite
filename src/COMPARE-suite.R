@@ -47,7 +47,7 @@ get_density <- function(x, y, ...) {
 
 ui <- navbarPage(
   
-  title = "ShinyHTSR",
+  title = "COMPARE-suite",
   
   theme = shinytheme("simplex"),
   
@@ -130,21 +130,22 @@ ui <- navbarPage(
             bsPopover("uio_channels_step3", title = NULL, content = "Channels to use for signal drift correction",
                       placement = "bottom", trigger = "hover"),
             
-            # fluidRow(
+            fluidRow(
+              column(
+                4,
+                div(uiOutput("uio_drctn_step3"), style = "font-size:95%"),
+                bsPopover("uio_drctn_step3", title = NULL, content = "Direction of signal drift",
+                          placement = "right", trigger = "hover"),
+              ) # end column
+            ), # end fluidRow
+            
+            fluidRow(
               column(
                 4,
                 div(uiOutput("uio_correct_step3"), style = "font-size:95%")
                 #bsPopover("uio_correct_step3", title = NULL, content = "Whether to perform signal drift correction",
                 #          placement = "bottom", trigger = "hover")
               ), # end column
-            
-              column(
-                6,
-                div(uiOutput("uio_drctn_step3"), style = "font-size:95%"),
-                bsPopover("uio_drctn_step3", title = NULL, content = "Direction of bias, either column or row",
-                          placement = "bottom", trigger = "hover"),
-                ), # end column
-            
               column(
                 4,
                 div(uiOutput("uio_fitplot_step3"), style = "font-size:95%")
@@ -157,7 +158,7 @@ ui <- navbarPage(
                 #bsPopover("uio_heatplot_step3", title = NULL, content = "Whether to plot plate heatmaps",
                 #          placement = "bottom", trigger = "hover")
               ) # end column
-            # ) # end fluidRow
+            ) # end fluidRow
             
           ) # end column
         ), # end fluidRow
@@ -174,6 +175,16 @@ ui <- navbarPage(
           ), # end column
           column(
             8,
+            
+            fluidRow(
+              column(
+                4,
+                div(uiOutput("uio_drctn_step4"), style = "font-size:95%"),
+                bsPopover("uio_drctn_step4", title = NULL, content = "Direction of viability bias",
+                          placement = "right", trigger = "hover"),
+              ) # end column
+            ), # end fluidRow
+            
             fluidRow(
               column(
                 4,
@@ -262,7 +273,7 @@ ui <- navbarPage(
               column(
                 4,
                 div(uiOutput("uio_nn"), style = "font-size:95%"),
-                bsPopover("uio_nn", title = NULL, content = "Number of nearest neighbors",
+                bsPopover("uio_nn", title = NULL, content = "Number of nearest neighbors for UMAP calculation",
                           placement = "bottom", trigger = "hover")
               ) # end column
             ) # end fluidRow
@@ -276,13 +287,13 @@ ui <- navbarPage(
         fluidRow(
           column(
             4,
-            div(checkboxInput("include_step9", "9 - Interactive graphs", value = FALSE),
+            div(checkboxInput("include_step9", "9 - Make interactive plots", value = FALSE),
                 style = "font-size:113%; color:#333333")
           ), # end column
           column(
             8,
             div(uiOutput("uio_channels_step9"), style = "font-size:95%"),
-            bsPopover("uio_channels_step9", title = NULL, content = "Channels to use for visualizations",
+            bsPopover("uio_channels_step9", title = NULL, content = "Channels to include in interactive visualizations",
                       placement = "bottom", trigger = "hover")
           ) # end column
         ), # end fluidRow
@@ -330,64 +341,7 @@ ui <- navbarPage(
   ), # end tabPanel
   
   tabPanel(
-    title = "Data tables", #############################################################################################
-    
-    tabsetPanel(
-      
-      tabPanel(
-        title = "Drugs",
-        br(),
-        div(dataTableOutput("drugs_dt"), style = "font-size:95%")
-      ), # end tabPanel
-      
-      tabPanel(
-        title = "Channels",
-        br(),
-        div(dataTableOutput("channels_dt"), style = "font-size:95%")
-      ), # end tabPanel
-      
-      tabPanel(
-        title = "Channel MFIs",
-        br(),
-        div(dataTableOutput("mfis_dt"), style = "font-size:95%")
-      ), # end tabPanel
-      
-      tabPanel(
-        title = "Cliques",
-        br(),
-        div(dataTableOutput("cliques_dt"), style = "font-size:95%")
-      ), # end tabPanel
-      
-      tabPanel(
-        title = "Samples edges",
-        br(),
-        div(dataTableOutput("samples_network_dt"), style = "font-size:95%")
-      ), # end tabPanel
-      
-      tabPanel(
-        title = "Dispersion edges",
-        br(),
-        div(dataTableOutput("disp_network_dt"), style = "font-size:95%")
-      ), # end tabPanel
-      
-      tabPanel(
-        title = "Cliques UMAP",
-        br(),
-        div(dataTableOutput("umap_dt"), style = "font-size:95%")
-      ), # end tabPanel
-      
-      tabPanel(
-        title = "Cliques centroids",
-        br(),
-        div(dataTableOutput("centroids_dt"), style = "font-size:95%")
-      ) # end tabPanel
-      
-    ) # end tabsetPanel
-    
-  ), # end tabPanel
-  
-  tabPanel(
-    title = "Graphs", ##################################################################################################
+    title = "Plots", ###################################################################################################
     useShinyjs(),
     
     # change body background
@@ -404,7 +358,7 @@ ui <- navbarPage(
         tabsetPanel(
           
           tabPanel(
-            title = "UMAP plot",
+            title = "UMAP",
             br(),
             
             fluidRow(
@@ -922,6 +876,63 @@ ui <- navbarPage(
     
   ), # end tabPanel
   
+  tabPanel(
+    title = "Data tables", #############################################################################################
+    
+    tabsetPanel(
+      
+      tabPanel(
+        title = "Drugs",
+        br(),
+        div(dataTableOutput("drugs_dt"), style = "font-size:95%")
+      ), # end tabPanel
+      
+      tabPanel(
+        title = "Channels",
+        br(),
+        div(dataTableOutput("channels_dt"), style = "font-size:95%")
+      ), # end tabPanel
+      
+      tabPanel(
+        title = "Channel MFIs",
+        br(),
+        div(dataTableOutput("mfis_dt"), style = "font-size:95%")
+      ), # end tabPanel
+      
+      tabPanel(
+        title = "Cliques",
+        br(),
+        div(dataTableOutput("cliques_dt"), style = "font-size:95%")
+      ), # end tabPanel
+      
+      tabPanel(
+        title = "Samples edges",
+        br(),
+        div(dataTableOutput("samples_network_dt"), style = "font-size:95%")
+      ), # end tabPanel
+      
+      tabPanel(
+        title = "Dispersion edges",
+        br(),
+        div(dataTableOutput("disp_network_dt"), style = "font-size:95%")
+      ), # end tabPanel
+      
+      tabPanel(
+        title = "Cliques UMAP",
+        br(),
+        div(dataTableOutput("umap_dt"), style = "font-size:95%")
+      ), # end tabPanel
+      
+      tabPanel(
+        title = "Cliques centroids",
+        br(),
+        div(dataTableOutput("centroids_dt"), style = "font-size:95%")
+      ) # end tabPanel
+      
+    ) # end tabsetPanel
+    
+  ), # end tabPanel
+  
   br(),
   br()
 ) # end ui
@@ -995,7 +1006,7 @@ server <- function(input, output, session) {
     if (input$include_step3) {
       
       output$uio_channels_step3 <- renderUI({
-        div(textInput("channels_step3", "List of active channels:", width = "100%",
+        div(textInput("channels_step3", "Channels:", width = "100%",
                       placeholder = "Coma-separated names, e.g., SSC-H,VL1-H,VL6-H"),
             style = "font-size:95%")
       }) # end out$uio_channels_step3
@@ -1005,8 +1016,8 @@ server <- function(input, output, session) {
       }) # end output$uio_correct_step3
       
       output$uio_drctn_step3 <- renderUI({
-        div(textInput("drctn_step3", "Direction of bias:", width = "100%",
-                      placeholder = "either column or row"),
+        div(selectInput("drctn_step3", "Direction of bias:", choices = c("Column" = "column", "Row" = "row"),
+                        width = "100%"),
             style = "font-size:95%")
       }) # end out$uio_channels_step3
       
@@ -1040,6 +1051,12 @@ server <- function(input, output, session) {
         checkboxInput("correct_step4", "Perform correction", value = TRUE)
       }) # end output$uio_correct_step4
       
+      output$uio_drctn_step4 <- renderUI({
+        div(selectInput("drctn_step4", "Direction of bias:", choices = c("Column" = "column", "Row" = "row"),
+                        width = "100%"),
+            style = "font-size:95%")
+      }) # end out$uio_channels_step4
+      
       output$uio_fitplot_step4 <- renderUI({
         checkboxInput("fitplot_step4", "Plot regressed line", value = TRUE)
       }) # end output$uio_fitplot_step3
@@ -1051,6 +1068,7 @@ server <- function(input, output, session) {
     } else {
       
       output$uio_correct_step4 <- renderUI({NULL})
+      output$uio_drctn_step4 <- renderUI({NULL})
       output$uio_fitplot_step4 <- renderUI({NULL})
       output$uio_heatplot_step4 <- renderUI({NULL})
       
@@ -1065,7 +1083,7 @@ server <- function(input, output, session) {
     if (input$include_step5) {
       
       output$uio_channels_step5 <- renderUI({
-        div(textInput("channels_step5", "List of active channels:", width = "100%",
+        div(textInput("channels_step5", "Channels:", width = "100%",
                       placeholder = "Coma-separated names, e.g., SSC-H,VL1-H,VL6-H"),
             style = "font-size:95%")
       }) # end out$uio_channels_step5
@@ -1095,13 +1113,13 @@ server <- function(input, output, session) {
     if (input$include_step8) {
       
       output$uio_channels_step8 <- renderUI({
-        div(textInput("channels_step8", "List of active channels:", width = "100%",
+        div(textInput("channels_step8", "Channels:", width = "100%",
                       placeholder = "Coma-separated names, e.g., SSC-H,VL1-H,VL6-H"),
             style = "font-size:95%")
       }) # end out$uio_channels_step8
       
       output$uio_nn <- renderUI({
-        numericInput("nn", "Nearest neighbors:", value = 5, min = 10, max = 10, width = "100%")
+        numericInput("nn", "Nearest neighbors:", value = 5, min = 2, max = 100, width = "100%")
       }) # end output$uio_n
       
     } else {
@@ -1120,7 +1138,7 @@ server <- function(input, output, session) {
     if (input$include_step9) {
       
       output$uio_channels_step9 <- renderUI({
-        div(textInput("channels_step9", "List of active channels:", width = "100%",
+        div(textInput("channels_step9", "Channels:", width = "100%",
                       placeholder = "Coma-separated names, e.g., SSC-H,VL1-H,VL6-H"),
             style = "font-size:95%")
       }) # end out$uio_channels_step9
@@ -1250,7 +1268,7 @@ server <- function(input, output, session) {
       
       validate(need(strsplit(input$channels_step3, split = '[,]')[[1]], message = FALSE))
       validate(need(input$correct_step3, message = FALSE))
-      validate(need(input$input$drctn_step3, message = FALSE))
+      validate(need(input$drctn_step3, message = FALSE))
       validate(need(input$fitplot_step3, message = FALSE))
       validate(need(input$heatplot_step3, message = FALSE))
       
@@ -1290,6 +1308,7 @@ server <- function(input, output, session) {
     if (input$include_step4) {
       
       validate(need(input$correct_step4, message = FALSE))
+      validate(need(input$drctn_step4, message = FALSE))
       validate(need(input$fitplot_step4, message = FALSE))
       validate(need(input$heatplot_step4, message = FALSE))
       
@@ -1297,6 +1316,7 @@ server <- function(input, output, session) {
       withCallingHandlers({
         
         step4_viability_correction(CORRECT = input$correct_step4,
+                                   drctn_ = input$drctn_step4,
                                    FITPLOT = input$fitplot_step4,
                                    HEATPLOT = input$heatplot_step4,
                                    inURL = paths()$data,
@@ -1488,14 +1508,7 @@ server <- function(input, output, session) {
         return(NULL)
       } # end if
       
-      if (!("UMAP.tsv" %in% files)) {
-        html(id = "run_message_center",
-             html = "Can't find UMAP.tsv file in output folder, please make sure that Step 8 was run",
-             add = TRUE)
-        return(NULL)
-      } # end if
-      
-      html(id = "message_output", html = paste0(Sys.time(), " : Reading compaRe files</br>"), add = TRUE)
+      html(id = "message_output", html = paste0(Sys.time(), " : Reading COMPARE files</br>"), add = TRUE)
       
       # scroll window
       session$sendCustomMessage(type = "scrollCallback", 1)
@@ -1504,7 +1517,7 @@ server <- function(input, output, session) {
       
       # load the compaRe RData file
       e = new.env()
-      rdata_obj <- load(paste0(paths()$out, "compaRe_clustering.RData"), envir = e)
+      rdata_obj <- load(paste0(paths()$out, "compare_clustering.RData"), envir = e)
       rdata_obj <- e[[rdata_obj]]
       
       # drugs table
@@ -1635,8 +1648,8 @@ server <- function(input, output, session) {
       
       ####### cliques UMAP and centroids
       
-      rvs$umap <- read.table(paste0(paths()$out, "UMAP.tsv"), sep = "\t")
-      rvs$centroids <- read.table(paste0(paths()$out, "Centroids.tsv"), sep = "\t")
+      rvs$umap <- rdata_obj$umap_
+      rvs$centroids <- read.table(paste0(paths()$out, "Centroids.tsv"), sep = "\t", header = TRUE, row.names = 1)
       
       colnames(rvs$centroids) <- rvs$channels[channels,]$desc
       
@@ -1715,7 +1728,7 @@ server <- function(input, output, session) {
       updateSelectInput(session, "channels_for_violins", choices = channels, selected = channels)
       
       
-      html(id = "message_output", html = paste0(Sys.time(), " : Step 9 done! Proceed to Graphs tab.</br>"), add = TRUE)
+      html(id = "message_output", html = paste0(Sys.time(), " : Step 9 done! Proceed to Plots tab.</br>"), add = TRUE)
       session$sendCustomMessage(type = "scrollCallback", 1)
       
     } # end if
@@ -1797,7 +1810,7 @@ server <- function(input, output, session) {
   
   
   ######################################################################################################################
-  ### --- Graphs tab --- ###############################################################################################
+  ### --- Plots tab --- ###############################################################################################
   ######################################################################################################################
   
   
@@ -1869,7 +1882,7 @@ server <- function(input, output, session) {
       size_title <- "None"
     } # end else
     
-    write.table(d, "umap_plot_data.txt", sep = "\t", quote = FALSE)
+    #write.table(d, "umap_plot_data.txt", sep = "\t", quote = FALSE)
     
     return(list(d = d, x_lab = input$umap_x, y_lab = input$umap_y, channel = input$umap_channel, size_title = size_title))
     
@@ -2601,7 +2614,7 @@ server <- function(input, output, session) {
       exprs_data[,i] <- as.double(exprs_data[,i])
     } # end for
     
-    write.table(exprs_data, "event_exprs_data.txt", sep = "\t", quote = FALSE)
+    #write.table(exprs_data, "event_exprs_data.txt", sep = "\t", quote = FALSE)
     
     html(id = "scatter_message_center", html = "", add = FALSE)
     
@@ -2655,7 +2668,7 @@ server <- function(input, output, session) {
     
     html(id = "scatter_message_center", html = "", add = FALSE)
     
-    write.table(d_sampled, "event_exprs_data_sampled.txt", sep = "\t", quote = FALSE)
+    #write.table(d_sampled, "event_exprs_data_sampled.txt", sep = "\t", quote = FALSE)
     
     return(d_sampled)
     
@@ -2839,8 +2852,6 @@ server <- function(input, output, session) {
       data_long$channel <- as.factor(data_long$channel)
       
     } else {
-      
-      message(input$violins_groups)
       
       d <- d[which(d[,isolate(input$sample_var)] %in% input$violins_groups),]
       
