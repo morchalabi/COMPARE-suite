@@ -36,11 +36,6 @@ if(!requireNamespace("gridExtra"))
   message('<< Installing gridExtra >>')
   install.packages('gridExtra', repos = "https://cloud.r-project.org")
 }
-if(!requireNamespace("plotly"))
-{
-  message('<< Installing plotly >>')
-  install.packages('plotly', repos = "https://cloud.r-project.org")
-}
 if(!requireNamespace("ggExtra"))
 {
   message('<< Installing ggExtra >>')
@@ -118,12 +113,6 @@ if(!requireNamespace("flowCore"))
 {
   message('<< Installing flowCore >>')
   BiocManager::install('flowCore')
-}
-
-if(!requireNamespace("ComplexHeatmap"))
-{
-  message('<< Installing ComplexHeatmap >>')
-  BiocManager::install('ComplexHeatmap')
 }
 
 # GitHub package ####
