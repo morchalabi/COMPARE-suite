@@ -4,14 +4,12 @@ require(shinythemes)
 require(shinyjs)
 require(shinyFiles)
 require(shinyBS)
-require(plotly)
 require(ggExtra)
 require(DT)
 require(visNetwork)
 require(igraph)
 require(circlize)
 require(inlmisc)
-require(ComplexHeatmap)
 require(writexl)
 
 # load the workflow functions into global environment
@@ -73,16 +71,16 @@ ui <- navbarPage(
             div(textInput("data_path", "Data path:", placeholder = "Path to Annotations.txt and FCS files", value = paste0("..", .Platform$file.sep, "data", .Platform$file.sep), width = "100%"),
                 style = "font-size:95%"),
             bsPopover("data_path", title = NULL,
-                      content = "Relative path to folder containing Annotations.txt and FCS files.</br><b>Warning:</b> Step 1 rewrites Annotations.txt file and Steps 2 to 4 rewrite the FCS files. We recommend to have backup copies of the annotation and FCS files.",
-                      placement = "bottom", trigger = "hover")
+                      content = "Path to folder containing Annotations.txt and FCS files.</br><b>Warning:</b> Step 1 rewrites Annotations.txt file and Steps 2 to 4 rewrite the FCS files. We recommend to have backup copies of the annotation and FCS files.",
+                      placement = "bottom", trigger = "focus", options = list(container = "body"))
           ), # end column
           
           column(
             6,
             div(textInput("out_path", "Out path:", placeholder = "Path to output folder", value = paste0("..", .Platform$file.sep, "out", .Platform$file.sep), width = "100%"),
                 style = "font-size:95%"),
-            bsPopover("out_path", title = NULL, content = "Relative path to folder for output files",
-                      placement = "bottom", trigger = "hover")
+            bsPopover("out_path", title = NULL, content = "Path to folder for output files",
+                      placement = "bottom", trigger = "focus", options = list(container = "body"))
           ) # end column
           
         ), # end fluidRow
@@ -101,7 +99,7 @@ ui <- navbarPage(
                 4,
                 div(uiOutput("uio_min_events"), style = "font-size:95%"),
                 bsPopover("uio_min_events", title = NULL, content = "Wells with events below this number are skipped",
-                          placement = "bottom", trigger = "hover")
+                          placement = "right", trigger = "focus", options = list(container = "body"))
               ) # end column
             ) # end fluidRow
           ) # end column
@@ -128,14 +126,14 @@ ui <- navbarPage(
             8,
             div(uiOutput("uio_channels_step3"), style = "font-size:95%"),
             bsPopover("uio_channels_step3", title = NULL, content = "Channels to use for signal drift correction",
-                      placement = "bottom", trigger = "hover"),
+                      placement = "right", trigger = "focus", options = list(container = "body")),
             
             fluidRow(
               column(
                 4,
                 div(uiOutput("uio_drctn_step3"), style = "font-size:95%"),
                 bsPopover("uio_drctn_step3", title = NULL, content = "Direction of signal drift",
-                          placement = "right", trigger = "hover"),
+                          placement = "right", trigger = "focus", options = list(container = "body")),
               ) # end column
             ), # end fluidRow
             
@@ -143,20 +141,14 @@ ui <- navbarPage(
               column(
                 4,
                 div(uiOutput("uio_correct_step3"), style = "font-size:95%")
-                #bsPopover("uio_correct_step3", title = NULL, content = "Whether to perform signal drift correction",
-                #          placement = "bottom", trigger = "hover")
               ), # end column
               column(
                 4,
                 div(uiOutput("uio_fitplot_step3"), style = "font-size:95%")
-                #bsPopover("uio_fitplot_step3", title = NULL, content = "Whether to plot regressed lines",
-                #          placement = "bottom", trigger = "hover")
               ), # end column
               column(
                 4,
                 div(uiOutput("uio_heatplot_step3"), style = "font-size:95%")
-                #bsPopover("uio_heatplot_step3", title = NULL, content = "Whether to plot plate heatmaps",
-                #          placement = "bottom", trigger = "hover")
               ) # end column
             ) # end fluidRow
             
@@ -181,7 +173,7 @@ ui <- navbarPage(
                 4,
                 div(uiOutput("uio_drctn_step4"), style = "font-size:95%"),
                 bsPopover("uio_drctn_step4", title = NULL, content = "Direction of viability bias",
-                          placement = "right", trigger = "hover"),
+                          placement = "right", trigger = "focus", options = list(container = "body")),
               ) # end column
             ), # end fluidRow
             
@@ -189,20 +181,14 @@ ui <- navbarPage(
               column(
                 4,
                 div(uiOutput("uio_correct_step4"), style = "font-size:95%")
-                #bsPopover("uio_correct_step4", title = NULL, content = "Whether to perform cell viability correction",
-                #          placement = "bottom", trigger = "hover")
               ), # end column
               column(
                 4,
                 div(uiOutput("uio_fitplot_step4"), style = "font-size:95%")
-                #bsPopover("uio_fitplot_step4", title = NULL, content = "Whether to plot regressed lines",
-                #          placement = "bottom", trigger = "hover")
               ), # end column
               column(
                 4,
                 div(uiOutput("uio_heatplot_step4"), style = "font-size:95%")
-                #bsPopover("uio_heatplot_step4", title = NULL, content = "Whether to plot plate heatmaps",
-                #          placement = "bottom", trigger = "hover")
               ) # end column
             ) # end fluidRow
           ) # end column
@@ -222,19 +208,19 @@ ui <- navbarPage(
             8,
             div(uiOutput("uio_channels_step5"), style = "font-size:95%"),
             bsPopover("uio_channels_step5", title = NULL, content = "Channels to use for similarity matrix generation",
-                      placement = "bottom", trigger = "hover"),
+                      placement = "right", trigger = "focus", options = list(container = "body")),
             fluidRow(
               column(
                 4,
                 div(uiOutput("uio_n"), style = "font-size:95%"),
                 bsPopover("uio_n", title = NULL, content = "Number of subspaces to devide the original space to",
-                          placement = "bottom", trigger = "hover")
+                          placement = "right", trigger = "focus", options = list(container = "body"))
               ), # end column
               column(
                 4,
                 div(uiOutput("uio_num_cores"), style = "font-size:95%"),
                 bsPopover("uio_num_cores", title = NULL, content = "Number of CPU cores to use",
-                          placement = "bottom", trigger = "hover")
+                          placement = "right", trigger = "focus", options = list(container = "body"))
               ) # end column
             ) # end fluidRow
           ) # end column
@@ -268,13 +254,13 @@ ui <- navbarPage(
             8,
             div(uiOutput("uio_channels_step8"), style = "font-size:95%"),
             bsPopover("uio_channels_step8", title = NULL, content = "Channels to use for clustering",
-                      placement = "bottom", trigger = "hover"),
+                      placement = "right", trigger = "focus", options = list(container = "body")),
             fluidRow(
               column(
                 4,
                 div(uiOutput("uio_nn"), style = "font-size:95%"),
                 bsPopover("uio_nn", title = NULL, content = "Number of nearest neighbors for UMAP calculation",
-                          placement = "bottom", trigger = "hover")
+                          placement = "right", trigger = "focus", options = list(container = "body"))
               ) # end column
             ) # end fluidRow
           ) # end column
@@ -294,7 +280,7 @@ ui <- navbarPage(
             8,
             div(uiOutput("uio_channels_step9"), style = "font-size:95%"),
             bsPopover("uio_channels_step9", title = NULL, content = "Channels to include in interactive visualizations",
-                      placement = "bottom", trigger = "hover")
+                      placement = "right", trigger = "focus", options = list(container = "body"))
           ) # end column
         ), # end fluidRow
         
@@ -430,7 +416,7 @@ ui <- navbarPage(
                                     selected = "layout_with_fr", width = "100%"),
                         style = "font-size:95%"),
                     bsPopover("disp_network_layout", title = NULL, content = "FR = Fruchterman-Reingold",
-                              placement = "right", trigger = "hover")
+                              placement = "right", trigger = "focus", options = list(container = "body"))
                   ), # end column
                   
                   column(
@@ -541,7 +527,7 @@ ui <- navbarPage(
                                     selected = "layout_with_fr"),
                         style = "font-size:95%"),
                     bsPopover("samples_network_layout", title = NULL, content = "FR = Fruchterman-Reingold; KK = Kamada-Kawai",
-                              placement = "right", trigger = "hover")
+                              placement = "right", trigger = "hover", options = list(container = "body"))
                   ), # end column
                   
                   column(
@@ -725,7 +711,7 @@ ui <- navbarPage(
           column(
             6,
             div(selectInput(inputId = "sample_var", label = "Sampling variable:",
-                            choices = c("None" = "none", "Well ID" = "file", "Drug" = "drug", "Control" = "control", "Community" = "community"),
+                            choices = c("Well ID" = "file", "Drug" = "drug", "Control" = "control", "Community" = "community"),
                             selected = NULL, width = "100%"),
                 style = "font-size:95%")
           ), # end column
@@ -1205,6 +1191,8 @@ server <- function(input, output, session) {
       
       validate(need(input$min_events, message = FALSE))
       
+      html(id = "message_output", html = paste0(Sys.time(), " : Running Step 1 ...</br>"), add = TRUE)
+      
       # run with call handlers to redirect messages
       withCallingHandlers({
         
@@ -1235,6 +1223,8 @@ server <- function(input, output, session) {
     
     ### RUN STEP 2
     if (input$include_step2) {
+      
+      html(id = "message_output", html = paste0(Sys.time(), " : Running Step 2 ...</br>"), add = TRUE)
       
       # run with call handlers to redirect messages
       withCallingHandlers({
@@ -1271,6 +1261,8 @@ server <- function(input, output, session) {
       validate(need(input$drctn_step3, message = FALSE))
       validate(need(input$fitplot_step3, message = FALSE))
       validate(need(input$heatplot_step3, message = FALSE))
+      
+      html(id = "message_output", html = paste0(Sys.time(), " : Running Step 3 ...</br>"), add = TRUE)
       
       # run with call handlers to redirect messages
       withCallingHandlers({
@@ -1312,6 +1304,8 @@ server <- function(input, output, session) {
       validate(need(input$fitplot_step4, message = FALSE))
       validate(need(input$heatplot_step4, message = FALSE))
       
+      html(id = "message_output", html = paste0(Sys.time(), " : Running Step 4 ...</br>"), add = TRUE)
+      
       # run with call handlers to redirect messages
       withCallingHandlers({
         
@@ -1351,6 +1345,8 @@ server <- function(input, output, session) {
       validate(need(input$n, message = FALSE))
       validate(need(input$num_cores, message = FALSE))
       
+      html(id = "message_output", html = paste0(Sys.time(), " : Running Step 5...</br>"), add = TRUE)
+      
       # run with call handlers to redirect messages
       withCallingHandlers({
         
@@ -1385,6 +1381,8 @@ server <- function(input, output, session) {
     ### RUN STEP 6
     if (input$include_step6) {
       
+      html(id = "message_output", html = paste0(Sys.time(), " : Running Step 6 ...</br>"), add = TRUE)
+      
       # run with call handlers to redirect messages
       withCallingHandlers({
         
@@ -1414,6 +1412,8 @@ server <- function(input, output, session) {
     
     ### RUN STEP 7
     if (input$include_step7) {
+      
+      html(id = "message_output", html = paste0(Sys.time(), " : Running Step 7 ...</br>"), add = TRUE)
       
       # run with call handlers to redirect messages
       withCallingHandlers({
@@ -1448,6 +1448,8 @@ server <- function(input, output, session) {
       
       validate(need(strsplit(input$channels_step8, split = '[,]')[[1]], message = FALSE))
       validate(need(input$nn, message = FALSE))
+      
+      html(id = "message_output", html = paste0(Sys.time(), " : Running Step 8 ...</br>"), add = TRUE)
       
       # run with call handlers to redirect messages
       withCallingHandlers({
@@ -1484,6 +1486,8 @@ server <- function(input, output, session) {
       
       validate(need(input$channels_step9, message = FALSE))
       
+      html(id = "message_output", html = paste0(Sys.time(), " : Running Step 9 ...</br>"), add = TRUE)
+      
       # check if the needed files are present
       files <- list.files(paths()$out)
       
@@ -1508,7 +1512,7 @@ server <- function(input, output, session) {
         return(NULL)
       } # end if
       
-      html(id = "message_output", html = paste0(Sys.time(), " : Reading COMPARE files</br>"), add = TRUE)
+      html(id = "message_output", html = paste0(Sys.time(), " : Reading COMPARE files ...</br>"), add = TRUE)
       
       # scroll window
       session$sendCustomMessage(type = "scrollCallback", 1)
