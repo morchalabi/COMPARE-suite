@@ -12,7 +12,7 @@ require(circlize)
 require(inlmisc)
 require(writexl)
 
-# load the workflow functions into global environment
+### load the COMPARE workflow functions into global environment
 source("functions/1_import.R")
 source("functions/2_spillover_compensation.R")
 source("functions/3_signal_drift_correction.R")
@@ -22,13 +22,2220 @@ source("functions/6_similarity_matrix_heatmap.R")
 source("functions/7_negative_control_outlier_detector.R")
 source("functions/8_clustering.R")
 
-# Function to get density of points in 2 dimensions.
-# @param x A numeric vector.
-# @param y A numeric vector.
-# @param n Create a square n by n grid to compute density.
-# @return The density within each square.
-#
-# source: https://slowkow.com/notes/ggplot2-color-by-density/
+
+########################################################################################################################
+### --- module UI functions --- ########################################################################################
+########################################################################################################################
+
+### UI for Plots view, calls UI functions for all other visualization tabs in Plots view
+# @param id String, id of module to be passed to corresponding Server function
+plots_UI <- function(id) {
+  
+  ns <- NS(id)
+  
+  tagList(
+    
+    tabsetPanel(
+      
+      tabPanel(
+        title = "UMAP",
+        br(),
+        
+        Vis_umap_UI(ns("Vis_umap_UI_1"))
+        
+      ), # end tabPanel
+      
+      tabPanel(
+        title = "Dispersion network",
+        br(),
+        
+        Vis_disp_network_UI(ns("Vis_disp_network_UI_1"))
+        
+      ), # end tabPanel
+      
+      tabPanel(
+        title = "Samples network",
+        br(),
+        
+        Vis_samples_network_UI(ns("Vis_samples_network_UI_1"))
+        
+      ) # end tabPanel
+      
+    ), # end tabsetPanel
+    
+    fluidRow(
+      
+      column(
+        5,
+        
+        tabsetPanel(
+          
+          tabPanel(
+            title = "Selected wells",
+            br(),
+            
+            wellPanel(
+              style = "border:#f4f4f4",
+              
+              fluidRow(
+                
+                column(
+                  4,
+                  div(actionButton(ns("scatter_wells_select_all_rows"), "Select all", width = "100%"), style = "margin-bottom:20px")
+                ), # end column
+                
+                column(
+                  4,
+                  div(actionButton(ns("scatter_wells_clear_selected_rows"), "Clear selection", width = "100%"), style = "margin-bottom:20px")
+                ), # end column
+                
+                column(
+                  4,
+                  div(actionButton(ns("scatter_wells_remove_all"), "Clear table", width = "100%"), style = "margin-bottom:20px")
+                ) # end column
+                
+              ), # end fluidRow
+              
+              div(
+                style = "margin-bottom: 22px; font-size: 89%; height: 500px; overflow: auto;",
+                dataTableOutput(ns("scatter_wells_dt"))
+              ) # end div
+              
+            ) # end wellPanel
+            
+          ), # end tabPanel
+          
+          tabPanel(
+            title = "Control cluster wells",
+            br(),
+            
+            wellPanel(
+              style = "border:#f4f4f4",
+              
+              fluidRow(
+                column(
+                  4,
+                  div(actionButton(ns("ctr_wells_select_all_rows"), "Select all", width = "100%"), style = "margin-bottom:20px")
+                ), # end column
+                column(
+                  4,
+                  div(actionButton(ns("ctr_wells_clear_selected_rows"), "Clear selection", width = "100%"), style = "margin-bottom:20px")
+                ) # end column
+              ), # end fluidRow
+              
+              div(
+                style = "margin-bottom: 22px; font-size: 89%; height: 500px; overflow: auto;",
+                dataTableOutput(ns("ctr_wells_dt"))
+              ) # end div
+              
+            ) # end wellPanel
+            
+          ) # end tabPanel
+          
+        ), # end tabsetPanel
+        
+        wellPanel(
+          style = "border:#f4f4f4",
+          
+          fluidRow(
+            
+            column(
+              6,
+              div(selectInput(ns("annot_sampling_variable"), "Variable:",
+                              choices = c("community","file","drug","control"),
+                              width = "100%"),
+                  style = "font-size: 95%")
+            ), # end column
+            
+            column(
+              6,
+              div(numericInput(ns("max_per_group"), "Events per group:", min = 1000, max = 50000, step = 1000, value = 5000),
+                  style = "font-size:95%")
+            ) # end column
+            
+          ), # end fluidRow
+          
+          fluidRow(
+            
+            column(
+              6,
+              div(selectInput(ns("transformation_method"), "Transformation:",
+                              choices = c("Logicle" = "logicle", "Log2" = "log2", "Log10" = "log10", "None" = "none"),
+                              selected = "logicle", width = "100%"),
+                  style = "font-size:95%"),
+              bsPopover(ns("transformation_method"), title = NULL,
+                        content = "Logicle = linear-like scale for low values and log-like scale for high values. Log2 and log10 = shifted log transformations, nagative values are set to 0 and the log is taken from x + 1. None = no transformation.",
+                        placement = "right", trigger = "focus", options = list(container = "body"))
+            ), # end column
+            
+            column(
+              2,
+              div(checkboxInput(ns("center"), "Center", value = FALSE), style = "font-size:95%; margin-top: 30px"),
+              bsPopover(ns("center"), title = NULL,
+                        content = "Center with respect to mean.",
+                        placement = "bottom", trigger = "focus", options = list(container = "body"))
+            ), # end column
+            
+            column(
+              2,
+              div(checkboxInput(ns("scale"), "Scale", value = FALSE), style = "font-size:95%; margin-top: 30px"),
+              bsPopover(ns("scale"), title = NULL,
+                        content = "If centered, scale by standard deviation or by root mean square otherwise.",
+                        placement = "bottom", trigger = "focus", options = list(container = "body"))
+            ) # end column
+            
+          ), # end fluidRow
+          
+          hr(),
+          
+          fluidRow(
+            
+            column(
+              4,
+              actionButton(ns("plot_scatter"), "Plot", width = "100%")
+            ) # end column
+            
+          ), # end fluidRow
+          
+          div(
+            style = "font-size:12px; background: #ffffff; border: 1px;
+                         border-style: solid; border-color: #dddddd; border-radius: 4px;
+                         padding: 10px; height: 80px; overflow: auto; margin-top: 20px;",
+            textOutput(ns("scatter_message_center"))
+          ) # end div
+          
+        ) # end wellPanel
+        
+      ), # end columns
+      
+      column(
+        7,
+        
+        tabsetPanel(
+          
+          tabPanel(
+            title = "Scatterplot",
+            br(),
+            
+            fluidRow(
+              
+              column(
+                6,
+                div(selectInput(ns("scatter_x"), "Channel X:", choices = NULL, selected = NULL, width = "100%"),
+                    style = "font-size:95%;")
+              ), # end column
+              
+              column(
+                6,
+                div(selectInput(ns("scatter_y"), "Channel Y:", choices = NULL, selected = NULL, width = "100%"),
+                    style = "font-size:95%")
+              ) # end column
+              
+            ), # end fluidRow
+            
+            Vis_scatterplot_UI(ns("Vis_scatterplot_UI_1"))
+            
+          ), # end tabPanel
+          
+          tabPanel(
+            title = "Violins",
+            br(),
+            
+            Vis_violins_UI(ns("Vis_violins_UI_1"))
+            
+          ) # end tabPanel
+          
+        ) # end tabsetPanel
+        
+      ) # end column
+      
+    ) # end fluidRow
+    
+  ) # end tagList
+  
+} # end plots_UI
+
+
+### UI for UMAP tab
+# @param id String, id of module to be passed to corresponding Server function
+Vis_umap_UI <- function(id) {
+  
+  ns <- NS(id)
+  
+  tagList(
+    
+    fluidRow(
+      
+      column(
+        4,
+        div(selectInput(ns("umap_channel"), label = "Channel:", choices = NULL, selected = NULL, width = "100%"),
+            style = "font-size:95%")
+      ), # end column
+      
+      column(
+        2,
+        div(selectInput(ns("umap_x"), "X axis:", choices = NULL, selected = NULL, width = "100%"), style = "font-size:95%")
+      ),
+      
+      column(
+        2,
+        div(selectInput(ns("umap_y"), "Y axis:", choices = NULL, selected = NULL, width = "100%"), style = "font-size:95%")
+      ), # end column
+      
+      column(
+        2,
+        div(selectInput(ns("umap_dot_size"), "Clique size:", choices = c("Events" = "total_live_cells", "Wells" = "length", "None" = "none"), selected = "total_live_cells", width = "100%"),
+            style = "font-size:95%")
+      ), # end column
+      
+      column(
+        2,
+        div(selectInput(ns("umap_labels"), "Clique label:", choices = c("Community", "Clique ID", "None"), selected = "Community"),
+            style = "font-size:95%")
+      ) # end column
+      
+    ), # end fluidRow
+    
+    fluidRow(
+      column(
+        1,
+        textOutput(ns("umap_plot_hover_name"))
+      ), # end column
+      column(
+        1,
+        textOutput(ns("umap_plot_hover_centr"))
+      ), # end column
+      column(
+        10,
+        textOutput(ns("umap_plot_hover_comm"))
+      ) # end column
+    ), # end fluidRow
+    
+    textOutput(ns("umap_plot_hover_wells")),
+    textOutput(ns("umap_plot_hover_drugs")),
+    
+    plotOutput(ns("umap_plot"),
+               height = "660px",
+               click = ns("umap_plot_click"),
+               hover = hoverOpts(id = ns("umap_plot_hover"), delay = 15))
+    
+  ) # end tagList
+  
+} # end Vis_umap_UI
+
+
+### UI for Dispersion network tab
+# @param id String, id of module to be passed to corresponding Server function
+Vis_disp_network_UI <- function(id) {
+  
+  ns <- NS(id)
+  
+  tagList(
+    
+    tabsetPanel(
+      
+      tabPanel(
+        title = "Network settings",
+        br(),
+        
+        fluidRow(
+          
+          column(
+            2,
+            div(selectInput(ns("disp_network_layout"), "Network layout:",
+                            choices = c("FR" = "layout_with_fr", "Hierarchical" = "hierarchical"),
+                            selected = "layout_with_fr", width = "100%"),
+                style = "font-size:95%"),
+            bsPopover(ns("disp_network_layout"), title = NULL, content = "FR = Fruchterman-Reingold; Hierarchical = Largest hub node at the top.",
+                      placement = "right", trigger = "focus", options = list(container = "body"))
+          ), # end column
+          
+          column(
+            2,
+            div(selectInput(ns("disp_node_color_metric"), "Node color:",
+                            choices = c("MFI" = "mfi", "Degree" = "degree", "Cells" = "cells",
+                                        "Sim vs ctr" = "sim_vs_ctr", "Sim vs all" = "sim_vs_all", "None" = "none"),
+                            selected = "mfi"),
+                style = "font-size:95%")
+          ), # end column
+          
+          column(
+            3,
+            div(selectInput(ns("disp_node_color_channel"), label = "Channel for node MFI:",
+                            choices = NULL, selected = NULL, width = "100%"),
+                style = "font-size:95%")
+          ), # end column
+          
+          column(
+            2,
+            div(selectInput(ns("disp_node_label"), "Node label:",
+                            choices = c("Well" = "well", "Drug" = "drug", "Community" = "comm"),
+                            selected = "well"),
+                style = "font-size:95%")
+          ), # end column
+          
+          column(
+            2,
+            div(selectInput(ns("disp_edge_color_metric"), "Edge color:",
+                            choices = c("None" = "none", "Weight" = "weight"),
+                            selected = "none"),
+                style = "font-size:95%")
+          ), # end column
+          
+          column(
+            1,
+            div(checkboxInput(ns("disp_highlight_nearest"), "Highlight nearest neighbors", value = FALSE, width = "100%"),
+                style = "font-size:95%; margin-top:-4px")
+          ), # end column
+          
+        ) # end fluidRow
+        
+      ), # end tabPanel
+      
+      tabPanel(
+        title = "Select nodes",
+        br(),
+        
+        fluidRow(
+          
+          column(
+            4,
+            div(selectInput(ns("disp_select_by_id"), label = "Node ID:", choices = NULL, selected = NULL, multiple = TRUE, width = "100%"),
+                style = "font-size:95%")
+          ), # end column
+          
+          column(
+            4,
+            div(selectInput(ns("disp_select_by_drug"), label = "Drug:", choices = NULL, selected = NULL, multiple = TRUE, width = "100%"),
+                style = "font-size:95%")
+          ), # end column
+          
+          column(
+            4,
+            div(selectInput(ns("disp_select_by_comm"), label = "Community:", choices = NULL, selected = NULL, multiple = TRUE, width = "100%"),
+                style = "font-size:95%")
+          ) # end column
+          
+        ) # end fluidRow
+        
+      ) # end tabPanel
+      
+    ), # end tabsetPanel
+    
+    fluidRow(
+      
+      column(
+        2,
+        div(actionButton(ns("disp_network_add_selected"), "Add to selected wells" , width = "100%"), style = "margin-bottom: 20px")
+      ), # end column
+      
+      column(
+        10,
+        div(
+          style = "background: #ffffff; margin-bottom: 20px; padding: 0px;
+                   border: 1px; border-style: solid; border-color: #cccccc; border-radius: 4px;",
+          visNetworkOutput(ns("disp_network"), height = 660)
+        ) # end div
+      ) # end column
+      
+    ) # end fluidRow
+    
+  ) # end tagList
+  
+} # end Vis_disp_network_UI
+
+
+### UI for Samples network tab
+# @param id String, id of module to be passed to corresponding Server function
+Vis_samples_network_UI <- function(id) {
+  
+  ns <- NS(id)
+  
+  tagList(
+    
+    tabsetPanel(
+      
+      tabPanel(
+        title = "Network settings",
+        br(),
+        
+        fluidRow(
+          
+          column(
+            2,
+            div(selectInput(ns("samples_network_layout"), "Network layout:",
+                            choices = c("FR" = "layout_with_fr", "KK" = "layout_with_kk"),
+                            selected = "layout_with_fr"),
+                style = "font-size:95%"),
+            bsPopover(ns("samples_network_layout"), title = NULL, content = "FR = Fruchterman-Reingold; KK = Kamada-Kawai",
+                      placement = "right", trigger = "hover", options = list(container = "body"))
+          ), # end column
+          
+          column(
+            2,
+            div(selectInput(ns("samples_node_color_metric"), "Node color:",
+                            choices = c("MFI" = "mfi", "Degree" = "degree", "Cells" = "cells",
+                                        "Sim vs ctr" = "sim_vs_ctr", "Sim vs all" = "sim_vs_all", "None" = "none"),
+                            selected = "mfi"),
+                style = "font-size:95%")
+          ), # end column
+          
+          column(
+            3,
+            div(selectInput(ns("samples_node_color_channel"), "Channel for node MFI:", choices = NULL, multiple = FALSE, selected = NULL, width = "100%"),
+                style = "font-size:95%")
+          ), # end column
+          
+          column(
+            2,
+            div(selectInput(ns("samples_node_label"), "Node label:", choices = c("Well" = "well", "Drug" = "drug", "Community" = "comm"), selected = "well"),
+                style = "font-size:95%")
+          ), # end column
+          
+          column(
+            2,
+            div(selectInput(ns("samples_edge_color_metric"), "Edge color:", choices = c("None" = "none", "Weight" = "weight"), selected = "none"),
+                style = "font-size:95%")
+          ), # end column
+          
+          column(
+            1,
+            div(checkboxInput(ns("samples_highlight_nearest"), "Highlight nearest neighbors", value = FALSE, width = "100%"),
+                style = "font-size:95%; margin-top:-4px")
+          ), # end column
+          
+        ) # end fluidRow
+        
+      ), # end tabPanel
+      
+      tabPanel(
+        title = "Select nodes",
+        br(),
+        
+        fluidRow(
+          
+          column(
+            3,
+            div(selectInput(ns("samples_select_by_id"), label = "Node ID:", choices = NULL, selected = NULL, multiple = TRUE, width = "100%"),
+                style = "font-size:95%")
+          ), # end column
+          
+          column(
+            3,
+            div(selectInput(ns("samples_select_by_drug"), label = "Drug:", choices = NULL, selected = NULL, multiple = TRUE, width = "100%"),
+                style = "font-size:95%")
+          ), # end column
+          
+          column(
+            3,
+            div(selectInput(ns("samples_select_by_comm"), label = "Community:", choices = NULL, selected = NULL, multiple = TRUE, width = "100%"),
+                style = "font-size:95%")
+          ), # end column
+          
+          column(
+            3,
+            div(selectInput(ns("samples_select_by_clique"), label = "Clique ID:", choices = NULL, selected = NULL, multiple = TRUE, width = "100%"),
+                style = "font-size:95%")
+          ) # end column
+          
+        ) # end fluidRow
+        
+      ), # end tabPanel
+      
+      tabPanel(
+        title = "Filter nodes",
+        br(),
+        
+        fluidRow(
+          
+          column(
+            4,
+            div(sliderInput(ns("node_degree_range"), "Node degree:", min = 1, max = 100, value = c(1,100), step = 1, width = "100%"),
+                style = "font-size:95%")
+          ), # end column
+          
+          column(
+            4,
+            div(sliderInput(ns("sim_vs_ctr_range"), "Similarity vs control:", min = 0, max = 100, value = c(0,100), step = 0.1, width = "100%"),
+                style = "font-size:95%")
+          ), # end column
+          
+          column(
+            4,
+            div(sliderInput(ns("sim_vs_all_range"), "Similarity vs all:", min = 0, max = 100, value = c(0,100), step = 0.1, width = "100%"),
+                style = "font-size:95%")
+          ) # end column
+          
+        ) # end fluidRow
+        
+      ) # end tabPanel
+      
+    ), # end tabsetPanel
+    
+    fluidRow(
+      
+      column(
+        2,
+        div(actionButton(ns("samples_network_add_selected"), "Add to selected wells" , width = "100%"), style = "margin-bottom: 20px")
+      ), # end column
+      
+      column(
+        10,
+        div(
+          style = "background: #ffffff; margin-bottom: 20px; padding: 0px;
+                   border: 1px; border-style: solid; border-color: #cccccc; border-radius: 4px;",
+          visNetworkOutput(ns("samples_network"), height = 660)
+        ) # end div
+      ) # end column
+      
+    ) # end fluidRow
+    
+  ) # end tagList
+  
+} # end Vis_samples_network_UI
+
+
+### UI for Scatterplot tab
+# @param id String, id of module to be passed to corresponding Server function
+Vis_scatterplot_UI <- function(id) {
+  
+  ns <- NS(id)
+  
+  tagList(
+    
+    fluidRow(
+      
+      column(
+        3,
+        div(selectInput(ns("color"), "Point color:", choices = c("Group" = "group", "Density" = "density", "None" = "none"), selected = "group", width = "100%"),
+            style = "font-size:95%")
+      ), # end column
+      
+      column(
+        3,
+        div(selectInput(ns("margins"), "Margins:", choices = c("Density" = "density", "Boxplot" = "boxplot", "None" = "none"),
+                        selected = "density", width = "100%"),
+            style = "font-size:95%")
+      ), # end column
+      
+      column(
+        3,
+        div(selectInput(ns("height"), "Height:", choices = seq(300, 1500, 50), selected = 800, width = "100%"),
+            style = "font-size:95%")
+      ), # end column
+      
+      column(
+        3,
+        div(selectInput(ns("point_size"), "Point size:", choices = seq(0.1, 2, 0.1), selected = 0.5, width = "100%"),
+            style = "font-size:95%")
+      ) # end column
+      
+    ), # end fluidRow
+    
+    plotOutput(ns("scatterplot"), height = "700px")
+    
+  ) # end tagList
+  
+} # end Vis_scatterplot_UI
+
+
+### UI for Violins tab
+# @param id String, id of module to be passed to corresponding Server function
+Vis_violins_UI <- function(id) {
+  
+  ns <- NS(id)
+  
+  tagList(
+    
+    fluidRow(
+      
+      column(
+        3,
+        div(selectInput(inputId = ns("color"), "Violins color:", choices = c("Group" = "group", "None" = "none"),
+                        selected = "group", width = "100%"),
+            style = "font-size:95%")
+      ), # end column
+      
+      column(
+        7,
+        div(selectInput(ns("channels"), "Channels:", choices = NULL, selected = NULL, multiple = TRUE, width = "100%"),
+            style = "font-size:95%")
+      ), # end column
+      
+      column(
+        2,
+        div(selectInput(ns("width_type"), "Width:", choices = c("Auto" = "auto", "Wide" = "wide"), selected = "auto", width = "100%"),
+            style = "font-size:95%")
+      ) # end column
+      
+    ), # end fluidRow
+    
+    div(
+      style = "height: 880px; overflow-x: auto;",
+      plotOutput(ns("violins_plot"), height = "860px")
+    ) # end div
+    
+  ) # end tagList
+  
+} # end Vis_violins_UI
+
+
+########################################################################################################################
+### --- module server functions --- ####################################################################################
+########################################################################################################################
+
+### Server for Plots view
+# @param id String, id of corresponding plots_UI module
+# @param plots_set Reactive expression containing a list of data frames for visualizations in Plots view
+# @param paths Reactive expression containing a list of paths to data and out folders
+plots_S <- function(id, plots_set, paths) {
+  
+  moduleServer(
+    id,
+    
+    function(input, output, session) {
+      
+      ### validate and reference the plots_set
+      plots_set_ref <- reactive({
+        validate(need(plots_set(), message = FALSE))
+        return(plots_set())
+      }) # end plots_set_ref
+      
+      
+      rvs <- reactiveValues(
+        clicked_wells = NULL
+      ) # end rvs
+      
+      
+      ### update UI controls when a new plots_set is received
+      observe({
+        
+        active_channels <- plots_set_ref()$channels_table[which(plots_set_ref()$channels_table$processed_for_plots == "yes"),]
+        
+        channel_choices <- active_channels$name
+        names(channel_choices) <- active_channels$desc
+        
+        updateSelectInput(session, "scatter_x", choices = channel_choices)
+        updateSelectInput(session, "scatter_y", choices = channel_choices, selected = channel_choices[2])
+        
+      }) # end observe
+      
+      
+      ### select or deselect rows in the control wells table
+      scatter_wells_dt_proxy <- dataTableProxy("scatter_wells_dt")
+      
+      observeEvent(input$scatter_wells_select_all_rows, {
+        selectRows(scatter_wells_dt_proxy, c(input$scatter_wells_dt_rows_all, input$scatter_wells_dt_rows_selected))
+      }) # end observeEvent
+      
+      observeEvent(input$scatter_wells_clear_selected_rows, {
+        selectRows(scatter_wells_dt_proxy, NULL)
+      }) # end observeEvent
+      
+      ### clear selected wells
+      observeEvent(input$scatter_wells_remove_all, {
+        rvs$clicked_wells <- NULL
+      }) # end observeEvent
+      
+      
+      ### render the drugs table
+      output$ctr_wells_dt <- renderDT(
+        plots_set_ref()$ctr_wells[,c("file","drug","concentration","control","live_cells")],
+        filter = "top",
+        rownames = FALSE,
+        options = list(pageLength = 500, lengthMenu = c(10,25,50,100,500,1000), searchHighlight = TRUE)
+      ) # end output$ctr_wells_dt
+      
+      
+      ### select or deselect rows in the control wells table
+      ctr_wells_dt_proxy <- dataTableProxy("ctr_wells_dt")
+      
+      observeEvent(input$ctr_wells_select_all_rows, {
+        selectRows(ctr_wells_dt_proxy, c(input$ctr_wells_dt_rows_all, input$ctr_wells_dt_rows_selected))
+      }) # end observeEvent
+      
+      observeEvent(input$ctr_wells_clear_selected_rows, {
+        selectRows(ctr_wells_dt_proxy, NULL)
+      }) # end observeEvent
+      
+      
+      ### UMAP module
+      umap_clicked <- Vis_umap_S("Vis_umap_UI_1", plots_set_ref)
+      
+      
+      ### Dispersion network module
+      disp_network_clicked <- Vis_disp_network_S("Vis_disp_network_UI_1", plots_set_ref)
+      
+      
+      ### Samples network module
+      samples_network_clicked <- Vis_samples_network_S("Vis_samples_network_UI_1", plots_set_ref)
+      
+      
+      ### collect clicked wells from all visualization modules
+      observe({
+        rvs$clicked_wells <- union(isolate(rvs$clicked_wells),
+                                   c(umap_clicked()$wells,
+                                     disp_network_clicked()$wells,
+                                     samples_network_clicked()$wells))
+      }) # end observe
+      
+      
+      ### subset of annotation with wells clicked in umap and network plots
+      scatter_wells <- reactive({
+        if (is.null(rvs$clicked_wells)) {
+          return(NULL)
+        } else {
+          rows_to_select <- which(plots_set_ref()$drugs$file %in% rvs$clicked_wells & !(plots_set_ref()$drugs$file %in% plots_set_ref()$ctr_wells$file))
+          validate(need(rows_to_select, message = FALSE))
+          return(plots_set_ref()$drugs[rows_to_select,])
+        } # end else
+      }) # end scatter_wells
+      
+      
+      ### observer to render the datatable with wells selected in umap and network plots
+      observeEvent(scatter_wells(), {
+        
+        if (is.null(scatter_wells())) {
+          output$scatter_wells_dt <- renderDT(NULL)
+        } else {
+          output$scatter_wells_dt <- renderDT(
+            scatter_wells()[,c("file","drug","concentration","community","live_cells")],
+            filter = "top",
+            rownames = FALSE,
+            options = list(pageLength = 500, lengthMenu = c(10,25,50,100,500,1000), searchHighlight = TRUE)
+          ) # end output$scatter_wells_dt
+        } # end else
+        
+      }) # end observe
+      
+      
+      selected_sampling_method <- reactive({
+        return(input$annot_sampling_variable)
+      }) # end selected_sampling_method
+      
+      
+      sampling_groups <- reactive({
+        return(unique(rbind(scatter_wells()[input$scatter_wells_dt_rows_selected,],
+                            plots_set_ref()$ctr_wells[input$ctr_wells_dt_rows_selected,])[,selected_sampling_method()]))
+      }) # end sampling_groups
+      
+      
+      ### collect data for scatter plot and violins plot modules
+      observeEvent(
+        {
+          input$plot_scatter
+          input$scatter_x
+          input$scatter_y
+        }, {
+          
+          if (input$scatter_x != input$scatter_y) {
+            
+            scatter_data <- reactiveVal(event_scatter_data())
+            
+            # scatterplot module
+            Vis_scatterplot_S("Vis_scatterplot_UI_1", scatter_data)
+            
+          } # end if
+          
+          violins_data <- reactiveVal(event_violins_data())
+          
+          # density violins plot module
+          Vis_violins_S("Vis_violins_UI_1", violins_data)
+          
+      }) # end observeEvent
+      
+      
+      ### data for event scatterplot
+      event_scatter_data <- reactive({
+        
+        active_channels <- plots_set_ref()$channels_table[which(plots_set_ref()$channels_table$processed_for_plots == "yes"),]
+        
+        channel_choices <- active_channels$name
+        names(channel_choices) <- active_channels$desc
+        
+        return(
+          list(
+            data = sampled_scatterplot_data(),
+            selected_var = selected_sampling_method(),
+            channel_choices = channel_choices,
+            scatter_x = input$scatter_x,
+            scatter_y = input$scatter_y
+          ) # end list
+        ) # end return
+        
+      }) # end event_scatter_data
+      
+      
+      ### data for event violins plot
+      event_violins_data <- reactive({
+        
+        active_channels <- plots_set_ref()$channels_table[which(plots_set_ref()$channels_table$processed_for_plots == "yes"),]
+        
+        channel_choices <- active_channels$name
+        names(channel_choices) <- active_channels$desc
+        
+        return(
+          list(
+            data = sampled_event_exprs_data(),
+            selected_var = selected_sampling_method(),
+            channel_choices = channel_choices,
+            scatter_x = input$scatter_x,
+            scatter_y = input$scatter_y
+          ) # end list
+        ) # end return
+        
+      }) # end event_plots_data
+      
+      
+      ### event expression data after downsampling, filtered for x and y channels for scatterplot
+      sampled_scatterplot_data <- reactive({
+        
+        validate(need(sampled_event_exprs_data(), message = FALSE))
+        validate(need(selected_sampling_method(), message = FALSE))
+        
+        # make copy with selected x and y channels
+        d_scatter <- sampled_event_exprs_data()[,c(input$scatter_x, input$scatter_y)]
+        
+        # attach variable and variable color
+        d_scatter$var_name  <- sampled_event_exprs_data()[,selected_sampling_method()]
+        d_scatter$var_color <- sampled_event_exprs_data()[,paste0(selected_sampling_method(), "_color")]
+        
+        # get density in 2d for the x and y points
+        d_scatter$density <- get_density(d_scatter[,1], d_scatter[,2], h = c(1,1), n = 100)
+        
+        html(id = "scatter_message_center", html = paste0(Sys.time(), " : Rendering ...</br>"), add = FALSE)
+        
+        return(d_scatter)
+        
+      }) # end sampled_scatterplot_data
+      
+      
+      ### sampled event expression data
+      sampled_event_exprs_data <- reactive({
+        
+        validate(need(event_exprs_data(), message = FALSE))
+        validate(need(selected_sampling_method(), message = FALSE))
+        
+        html(id = "scatter_message_center", html = paste0(Sys.time(), " : Sampling ...</br>"), add = FALSE)
+        
+        d <- event_exprs_data()[which(event_exprs_data()[,selected_sampling_method()] %in% sampling_groups()),]
+        
+        sv <- selected_sampling_method()
+        
+        var_groups <- unique(d[,sv])
+        
+        d_sampled <- NULL
+        
+        for (group in var_groups) {
+          
+          d_group <- d[which(d[,sv] == group),]
+          
+          if (input$max_per_group >= nrow(d_group)) {
+            d_sampled <- rbind(d_sampled, d_group)
+          } else {
+            d_group_sampled <- d_group[sample(nrow(d_group), input$max_per_group),]
+            d_group_sampled <- d_group_sampled[order(as.numeric(rownames(d_group_sampled))),]
+            d_sampled <- rbind(d_sampled, d_group_sampled)
+          } # end else
+          
+        } # end for
+        
+        #write.table(d_sampled, "../event_exprs_data_sampled.txt", sep = "\t", quote = FALSE)
+        
+        return(d_sampled)
+        
+      }) # end sampled_event_exprs_data
+      
+      
+      ### event expression data
+      event_exprs_data <- reactive({
+        
+        # collect highlighted rows from selected wells and control wells tables
+        wells <- rbind(scatter_wells()[input$scatter_wells_dt_rows_selected,], plots_set_ref()$ctr_wells[input$ctr_wells_dt_rows_selected,])
+        
+        if (nrow(wells) == 0) {
+          html(id = "scatter_message_center",
+               html = "To generate Scatterplot and Violins, click to add wells from UMAP plot, Dispersion,
+                       or Samples networks and highlight rows in Selected wells or Control cluster wells.",
+               add = FALSE)
+          return(NULL)
+        } # end if
+        
+        active_channels <- plots_set_ref()$channels_table[which(plots_set_ref()$channels_table$processed_for_plots == "yes"),]
+        
+        channel_names <- active_channels$name
+        
+        files <- paste0(paths()$data, wells$file, ".fcs")
+        
+        # read fcs files into FlowSet
+        html(id = "scatter_message_center", html = paste0(Sys.time(), " : Reading ", length(files), " FCS files ...</br>"), add = FALSE)
+        fset_obj <- read.flowSet(files, transformation = FALSE)
+        
+        # logicle transformation if selected
+        if (input$transformation_method == "logicle") {
+          html(id = "scatter_message_center", html = paste0(Sys.time(), " : Applying ", input$transformation_method, " transformation ...</br>"), add = TRUE)
+          fset_obj <- transform(fset_obj, transformList(channel_names, logicleTransform(w = 0.5, t = 262144, m = 4.5)))
+        } # end if
+        
+        
+        vars <- c("community","file","drug","control")
+        
+        # extract into data frame and record the start and end row positions of each well in the exprs_data
+        html(id = "scatter_message_center", html = paste0(Sys.time(), " : Collecting expression data for scatterplot ...</br>"), add = TRUE)
+        
+        exprs_data <- NULL
+        var_cols <- NULL
+        wells$start <- NA
+        wells$end <- NA
+        
+        for (w in 1:nrow(wells)) {
+          
+          # start position
+          if (w == 1)
+            wells[w,]$start <- 1
+          else
+            wells[w,]$start <- nrow(exprs_data) + 1
+          
+          exprs_data <- rbind(exprs_data, fset_obj[[w]]@exprs[,channel_names, drop = FALSE])
+          
+          # end position
+          wells[w,]$end <- nrow(exprs_data)
+          
+          # columns with specifications of selected variables for each cell
+          var_cols_per_well <- NULL
+          for (v in vars) {
+            var_col <- rep(wells[w,v], wells[w,]$end - wells[w,]$start + 1)
+            var_cols_per_well <- cbind(var_cols_per_well, var_col)
+          } # end for
+          
+          var_cols <- rbind(var_cols, var_cols_per_well)
+          
+        } # end for
+        
+        
+        html(id = "scatter_message_center", html = paste0(Sys.time(), " : Making color palettes for variables ...</br>"), add = TRUE)
+        
+        # color columns for variables
+        var_color_cols <- NULL
+        for (c in 1:ncol(var_cols)) {
+          color_palette <- GetColors(length(unique(var_cols[,c])), scheme = "smooth rainbow", start = 0.2, end = 0.9, bias = 1.6)
+          var_color_cols <- cbind(var_color_cols, color_palette[as.factor(var_cols[,c])])
+        } # end for
+        
+        
+        # log transformation if selected
+        if (input$transformation_method %in% c("log2","log10")) {
+          
+          html(id = "scatter_message_center",
+               html = paste0(Sys.time(), " : Applying ", input$transformation_method, " transformation, negative values are set to 0 ...</br>"),
+               add = TRUE)
+          
+          if (input$transformation_method == "log2") 
+            b = 2
+          else if (input$transformation_method == "log10")
+            b = 10
+          
+          # set negative values to 0
+          exprs_data[exprs_data < 0] <- 0
+          
+          # shifted log-transform with base b
+          exprs_data <- log(exprs_data + 1, b)
+          
+        } # end if
+        
+        # center and scale if selected
+        if (input$center & input$scale)
+          html(id = "scatter_message_center", html = paste0(Sys.time(), " : Centering and scaling ... </br>"), add = TRUE)
+        else if (input$center & !(input$scale))
+          html(id = "scatter_message_center", html = paste0(Sys.time(), " : Centering ... </br>"), add = TRUE)
+        else if (!(input$center) & input$scale)
+          html(id = "scatter_message_center", html = paste0(Sys.time(), " : Scaling ... </br>"), add = TRUE)
+        
+        exprs_data  <- scale(exprs_data, center = input$center, scale = input$scale)
+        
+        
+        ### compile the final expression data with variables and variable colors
+        exprs_data <- as.data.frame(cbind(exprs_data, var_cols, var_color_cols))
+        colnames(exprs_data) <- c(channel_names, vars, paste0(vars, "_color"))
+        
+        for (i in 1:length(channel_names)) {
+          exprs_data[,i] <- as.double(exprs_data[,i])
+        } # end for
+        
+        #write.table(exprs_data, "../event_exprs_data.txt", sep = "\t", quote = FALSE)
+        
+        return(exprs_data)
+        
+      }) # end event_exprs_data
+      
+      
+    } # end function
+    
+  ) # end moduleServer
+  
+} # end plots_S
+
+
+### Server for UMAP tab
+# @param id String, id of corresponding Vis_umap_UI module
+# @param plots_set Reactive expression containing a list of data frames for visualizations in Plots view
+# @return selected_wells Reactive value containing a list of clicked well identifiers
+Vis_umap_S <- function(id, plots_set) {
+  
+  moduleServer(
+    id,
+    
+    function(input, output, session) {
+      
+      ### validate and reference the plots_set
+      plots_set_ref <- reactive({
+        validate(need(plots_set(), message = FALSE))
+        return(plots_set())
+      }) # end plots_set_ref
+      
+      selected_wells <- reactiveVal(NULL)
+      
+      ### update plot-specific controls that depend on the input plots_set
+      observe({
+        
+        validate(need(plots_set_ref(), message = FALSE))
+        
+        updateSelectInput(session, "umap_x", choices = colnames(plots_set_ref()$umap))
+        updateSelectInput(session, "umap_y", choices = colnames(plots_set_ref()$umap), selected = colnames(plots_set_ref()$umap)[2])
+        updateSelectInput(session, "umap_channel", choices = as.character(plots_set_ref()$channels_table[plots_set_ref()$channels,]$desc))
+        
+      }) # end observe
+      
+      
+      ### placeholders for hover messages
+      html(id = "umap_plot_hover_name",
+           html = paste("<strong>Clique:</strong>"),
+           add = FALSE)
+      html(id = "umap_plot_hover_centr",
+           html = paste("<strong>MFI:</strong>"),
+           add = FALSE)
+      html(id = "umap_plot_hover_comm",
+           html = paste("<strong>Community:</strong>"),
+           add = FALSE)
+      html(id = "umap_plot_hover_wells",
+           html = paste("<strong>Wells:</strong>"),
+           add = FALSE)
+      html(id = "umap_plot_hover_drugs",
+           html = paste("<strong>Drugs:</strong>"),
+           add = FALSE)
+      
+      
+      ### data for the umap scatterplot
+      umap_plot_data <- reactive({
+        
+        validate(need(plots_set_ref(), message = FALSE))
+        validate(need(input$umap_x, message = FALSE))
+        validate(need(input$umap_y, message = FALSE))
+        validate(need(input$umap_channel, message = FALSE))
+        
+        d <- data.frame(
+          x = plots_set_ref()$umap[,input$umap_x],
+          y = plots_set_ref()$umap[,input$umap_y],
+          centr = plots_set_ref()$centroids[,input$umap_channel],
+          name = rownames(plots_set_ref()$umap),
+          wells = c("", plots_set_ref()$cliques$File),
+          drugs = c("", plots_set_ref()$cliques$Clique),
+          comm = c("Control", plots_set_ref()$cliques$Community)
+        ) # end data.frame
+        
+        if (input$umap_dot_size == "total_live_cells") {
+          d$size <- c(max(plots_set_ref()$cliques$total_live_cells), plots_set_ref()$cliques$total_live_cells)
+          size_title <- "Number\nof events"
+        } else if (input$umap_dot_size == "length") {
+          d$size <- c(max(plots_set_ref()$cliques$length), plots_set_ref()$cliques$length)
+          size_title <- "Number\nof wells"
+        } else {
+          size_title <- "None"
+        } # end else
+        
+        #write.table(d, "umap_plot_data.txt", sep = "\t", quote = FALSE)
+        
+        return(list(d = d, x_lab = input$umap_x, y_lab = input$umap_y, channel = input$umap_channel, size_title = size_title))
+        
+      }) # end umap_plot_data
+      
+      
+      ### render umap scatterplot
+      output$umap_plot <- renderPlot({
+        
+        validate(need(umap_plot_data(), message = FALSE))
+        
+        d <- umap_plot_data()$d
+        
+        border_strokes <- rep(0.4, nrow(d))
+        border_strokes[which(d$name == "Control")] <- 2
+        
+        border_cols <- rep("#cccccc", nrow(d))
+        border_cols[which(d$name == "Control")] <- "#008000"
+        
+        node_shapes <- rep(21, nrow(d))
+        node_shapes[which(d$name == "Control")] <- 23
+        
+        if (input$umap_dot_size == "total_live_cells") {
+          
+          max_size <- max(d$size)
+          size_limits <- c(0, max_size)
+          size_breaks = seq(0, max_size, max_size / 10)
+          size_labels <- c(0, round(seq(max_size / 10, max_size, max_size / 10), 0))
+          
+          p <- ggplot(d, aes(x = x, y = y)) +
+            geom_point(aes(fill = centr, size = size), shape = node_shapes, alpha = 0.8, color = border_cols, stroke = border_strokes) +
+            scale_size(breaks = size_breaks, range = c(1,11), labels = size_labels) +
+            expand_limits(size = size_limits) +
+            labs(x = umap_plot_data()$x_lab, y = umap_plot_data()$y_lab) +
+            guides(fill = guide_colorbar(order = 1, title = umap_plot_data()$channel, label.theme = element_text(size = 14)),
+                   size = guide_legend(order = 2, title = umap_plot_data()$size_title, label.theme = element_text(size = 14))) +
+            theme_light() +
+            theme(legend.position = "left", legend.title = element_text(size = 16),
+                  axis.text = element_text(size = 16), axis.title = element_text(size = 18)) +
+            scale_fill_gradientn(colours = c("#0571B0","#92C5DE","yellow","#F4A582","#CA0020"),
+                                 limits = c(min(d$centr), max(d$centr)),
+                                 breaks = round(seq(min(d$centr) + 0.01, max(d$centr) - 0.01, length.out = 3), 2))
+          
+        } else if (input$umap_dot_size == "length") {
+          
+          max_size <- max(d$size)
+          size_limits <- c(0, max_size)
+          size_breaks = seq(0, max_size, max_size / 5)
+          size_labels <- c(0, round(seq(max_size / 5, max_size, max_size / 5), 1))
+          
+          p <- ggplot(d, aes(x = x, y = y)) +
+            geom_point(aes(fill = centr, size = size), shape = node_shapes, alpha = 0.8, color = border_cols, stroke = border_strokes) +
+            scale_size(breaks = size_breaks, range = c(1,11), labels = size_labels) +
+            expand_limits(size = size_limits) +
+            labs(x = umap_plot_data()$x_lab, y = umap_plot_data()$y_lab) +
+            guides(fill = guide_colorbar(order = 1, title = umap_plot_data()$channel, label.theme = element_text(size = 14)),
+                   size = guide_legend(order = 2, title = umap_plot_data()$size_title, label.theme = element_text(size = 14))) +
+            theme_light() +
+            theme(legend.position = "left", legend.title = element_text(size = 16),
+                  axis.text = element_text(size = 16), axis.title = element_text(size = 18)) +
+            scale_fill_gradientn(colours = c("#0571B0","#92C5DE","yellow","#F4A582","#CA0020"),
+                                 limits = c(min(d$centr), max(d$centr)),
+                                 breaks = round(seq(min(d$centr) + 0.01, max(d$centr) - 0.01, length.out = 3), 2))
+          
+        } else {
+          
+          p <- ggplot(d, aes(x = x, y = y)) +
+            geom_point(aes(fill = centr), size = 10, shape = node_shapes, alpha = 0.8, color = border_cols, stroke = border_strokes) +
+            labs(x = umap_plot_data()$x_lab, y = umap_plot_data()$y_lab) +
+            guides(fill = guide_colorbar(order = 1, title = umap_plot_data()$channel, label.theme = element_text(size = 16, angle = 45, hjust = 1))) +
+            theme_light() +
+            theme(legend.position = "left",
+                  legend.title = element_text(size = 16), axis.text = element_text(size = 16), axis.title = element_text(size = 18)) +
+            scale_fill_gradientn(colours = c("#0571B0","#92C5DE","yellow","#F4A582","#CA0020"),
+                                 limits = c(min(d$centr), max(d$centr)),
+                                 breaks = round(seq(min(d$centr) + 0.01, max(d$centr) - 0.01, length.out = 3), 2))
+          
+        } # end else
+        
+        if (input$umap_labels == "Clique ID") {
+          
+          p <- p + geom_text_repel(box.padding = unit(0.3, "lines"), label = d$name,
+                                   size = 5.5, show.legend = FALSE, fontface = 1,
+                                   max.overlaps = 50)
+          
+        } else if (input$umap_labels == "Community") {
+          
+          color_palette <- GetColors(length(unique(d$comm)), scheme = "jet")
+          
+          p <- p + geom_text_repel(box.padding = unit(0.6, "lines"), label = d$comm,
+                                   size = 7, show.legend = FALSE, fontface = 2, color = color_palette[as.factor(d$comm)],
+                                   max.overlaps = 50)
+          
+        } # end else if
+        
+        p
+        
+      }) # end output$umap_plot
+      
+      
+      ### observer to display data on hover point from line plot
+      observeEvent(input$umap_plot_hover, {
+        
+        d <- umap_plot_data()$d
+        
+        validate(need(d, message = FALSE))
+        
+        hover <- input$umap_plot_hover
+        point <- nearPoints(d, hover, threshold = 10, maxpoints = 1, xvar = "x", yvar = "y")
+        
+        if (nrow(point) > 0) {
+          html(id = "umap_plot_hover_name",
+               html = paste("<strong>Clique:</strong>", point$name),
+               add = FALSE)
+          html(id = "umap_plot_hover_centr",
+               html = paste("<strong>MFI:</strong>", round(point$centr, 3)),
+               add = FALSE)
+          html(id = "umap_plot_hover_comm",
+               html = paste("<strong>Community:</strong>", point$comm),
+               add = FALSE)
+          html(id = "umap_plot_hover_wells",
+               html = paste("<strong>Wells:</strong>", point$wells),
+               add = FALSE)
+          html(id = "umap_plot_hover_drugs",
+               html = paste("<strong>Drugs:</strong>", point$drugs),
+               add = FALSE)
+        } else {
+          html(id = "umap_plot_hover_name",
+               html = paste("<strong>Clique:</strong>"),
+               add = FALSE)
+          html(id = "umap_plot_hover_centr",
+               html = paste("<strong>MFI:</strong>"),
+               add = FALSE)
+          html(id = "umap_plot_hover_comm",
+               html = paste("<strong>Community:</strong>"),
+               add = FALSE)
+          html(id = "umap_plot_hover_wells",
+               html = paste("<strong>Wells:</strong>"),
+               add = FALSE)
+          html(id = "umap_plot_hover_drugs",
+               html = paste("<strong>Drugs:</strong>"),
+               add = FALSE)
+        } # end else
+        
+      }) # end observeEvent
+      
+      
+      ### observer to record clicked wells in plate heatmaps
+      observeEvent(input$umap_plot_click, {
+        
+        d <- umap_plot_data()$d
+        
+        validate(need(d, message = FALSE))
+        
+        click <- input$umap_plot_click
+        point <- nearPoints(d, click, threshold = 10, maxpoints = 1, xvar = "x", yvar = "y")
+        
+        if (nrow(point) > 0)
+          selected_wells(list(wells = strsplit(point$wells, split = ",")[[1]]))
+        
+      }) # end observeEvent
+      
+      return(selected_wells)
+      
+    } # end function
+    
+  ) # end moduleServer
+  
+} # end Vis_umap_S
+
+
+### Server for Dispersion network tab
+# @param id String, id of corresponding Vis_disp_network_UI module
+# @param plots_set Reactive expression containing a list of data frames for visualizations in Plots view
+# @return selected_wells Reactive value containing a list of clicked well identifiers
+Vis_disp_network_S <- function(id, plots_set) {
+  
+  moduleServer(
+    id,
+    
+    function(input, output, session) {
+      
+      ### validate and reference the plots_set
+      plots_set_ref <- reactive({
+        validate(need(plots_set(), message = FALSE))
+        return(plots_set())
+      }) # end plots_set_ref
+      
+      selected_wells <- reactiveVal(NULL)
+      
+      ### update plot-specific controls that depend on the input plots_set
+      observe({
+        
+        validate(need(plots_set_ref(), message = FALSE))
+        
+        updateSelectInput(session, "disp_node_color_channel", choices = as.character(plots_set_ref()$channels_table[plots_set_ref()$channels,]$desc))
+        
+      }) # end observe
+      
+      ### samples graph igraph object
+      disp_igraph <- reactive({
+        
+        validate(need(plots_set_ref()$drugs, message = FALSE))
+        
+        nodes <- data.frame(
+          id = plots_set_ref()$drugs$file,
+          color.border = "#999999",
+          borderWidth = 1,
+          color.highlight.border = "#d62d20",
+          degree = plots_set_ref()$drugs$degree_disp,
+          value = plots_set_ref()$drugs$live_cells,
+          drug = plots_set_ref()$drugs$drug,
+          drug_label = paste(plots_set_ref()$drugs$drug, plots_set_ref()$drugs$concentration, sep = "_"),
+          community = plots_set_ref()$drugs$community,
+          sim_vs_ctr = plots_set_ref()$drugs$sim_vs_control,
+          sim_vs_all = plots_set_ref()$drugs$sim_vs_all
+        ) # end data.frame 
+        
+        # assign node color based on selected metric
+        if (input$disp_node_color_metric == "none") {
+          
+          nodes$color.background <- "#f1f1f1"
+          nodes$color.highlight.background <- "#f1f1f1"
+          
+        } else {
+          
+          if (input$disp_node_color_metric == "degree")
+            col_values <- plots_set_ref()$drugs$degree_disp
+          else if (input$disp_node_color_metric == "cells")
+            col_values <- plots_set_ref()$drugs$live_cells
+          else if (input$disp_node_color_metric == "mfi")
+            col_values <- plots_set_ref()$mfis[,input$disp_node_color_channel]
+          else if (input$disp_node_color_metric == "sim_vs_ctr")
+            col_values <- plots_set_ref()$drugs$sim_vs_control
+          else if (input$disp_node_color_metric == "sim_vs_all")
+            col_values <- plots_set_ref()$drugs$sim_vs_all
+          
+          col_fun <- colorRamp2(c(min(col_values), median(col_values), max(col_values)),
+                                c("#0057e7", "#fdf498", "#d62d20"))
+          nodes$color.background <- col_fun(col_values)
+          nodes$color.highlight.background <- col_fun(col_values)
+          
+        } # end else
+        
+        # add control node
+        nodes <- rbind(nodes, data.frame(id = "Control",
+                                         color.border = "#999999",
+                                         borderWidth = 1,
+                                         color.highlight.border = "#d62d20",
+                                         degree = length(which(plots_set_ref()$disp_network$from == "Control")) + length(which(plots_set_ref()$disp_network$to == "Control")),
+                                         value = mean(plots_set_ref()$drugs[which(plots_set_ref()$drugs$degree_disp == 0),]$live_cells),
+                                         drug = "Control",
+                                         drug_label = "Control",
+                                         community = 0,
+                                         sim_vs_ctr = NA,
+                                         sim_vs_all = NA,
+                                         color.background = "#f1f1f1",
+                                         color.highlight.background = "#f1f1f1"))
+        
+        # assign node color to the control node based on selected metric
+        if (!(input$disp_node_color_metric == "none")) {
+          
+          if (input$disp_node_color_metric == "degree") {
+            
+            ctr_value <- nodes[which(nodes$id == "Control"),]$degree
+            col_values <- c(plots_set_ref()$drugs$degree_disp, ctr_value)
+            
+          } else if (input$disp_node_color_metric == "cells") {
+            
+            ctr_value <- nodes[which(nodes$id == "Control"),]$value
+            col_values <- c(plots_set_ref()$drugs$live_cells, ctr_value)
+            
+          } else if (input$disp_node_color_metric == "mfi") {
+            
+            ctr_value <- median(plots_set_ref()$mfis[which(plots_set_ref()$drugs$degree_disp == 0),input$disp_node_color_channel])
+            col_values <- c(plots_set_ref()$mfis[,input$disp_node_color_channel], ctr_value)
+            
+          } else if (input$disp_node_color_metric == "sim_vs_ctr") {
+            
+            ctr_value <- mean(plots_set_ref()$drugs[which(plots_set_ref()$drugs$degree_disp == 0),]$sim_vs_control)
+            col_values <- c(plots_set_ref()$drugs$sim_vs_control, ctr_value)
+            
+          } else if (input$disp_node_color_metric == "sim_vs_all") {
+            
+            ctr_value <- mean(plots_set_ref()$drugs[which(plots_set_ref()$drugs$degree_disp == 0),]$sim_vs_all)
+            col_values <- c(plots_set_ref()$drugs$sim_vs_all, ctr_value)
+            
+          } # end esle if
+          
+          col_fun <- colorRamp2(c(min(col_values), median(col_values), max(col_values)),
+                                c("#0057e7", "#fdf498", "#d62d20"))
+          nodes[which(nodes$id == "Control"),]$color.background <- col_fun(ctr_value)
+          nodes[which(nodes$id == "Control"),]$color.highlight.background <- col_fun(ctr_value)
+          
+        } # end if
+        
+        
+        # assign node label based on user input
+        if (input$disp_node_label == "well")
+          nodes$label <- nodes$id
+        else if (input$disp_node_label == "drug")
+          nodes$label <- nodes$drug_label
+        else if (input$disp_node_label == "comm")
+          nodes$label <- nodes$community
+        
+        # make edges data frame
+        edges <- data.frame(
+          from = plots_set_ref()$disp_network$from,
+          to = plots_set_ref()$disp_network$to,
+          weight = plots_set_ref()$disp_network$weight
+        ) # end data.frame
+        
+        # assign edge colors
+        if (input$disp_edge_color_metric == "weight") {
+          edges$color <- plots_set_ref()$disp_network$color_weight
+        } else {
+          edges$color <- "#cbcbcb"
+        } # end esle
+        
+        # filter nodes to only those that are in the edge list
+        nodes <- nodes[which(nodes$id %in% unique(c(edges$from, edges$to))),]
+        
+        # make igraph object
+        g <- graph_from_data_frame(edges, directed = FALSE, vertices = nodes)
+        
+        # update the node id input box
+        updateSelectInput(session, "disp_select_by_id", choices = V(g)$name[order(V(g)$name)])
+        updateSelectInput(session, "disp_select_by_drug", choices = V(g)$drug[order(V(g)$drug)])
+        updateSelectInput(session, "disp_select_by_comm", choices = V(g)$community[order(as.integer(V(g)$community))])
+        
+        return(g)
+        
+      }) # end disp_igraph
+      
+      
+      ### render the dispersion network
+      output$disp_network <- renderVisNetwork({
+        
+        g <- disp_igraph()
+        
+        if (is.null(g))
+          return(NULL)
+        
+        # render the network from igraph object
+        if (input$disp_network_layout == "layout_with_fr") {
+          
+          visIgraph(g, idToLabel = FALSE, layout = "layout_with_fr", randomSeed = 211) %>%
+            visOptions(highlightNearest = input$disp_highlight_nearest, autoResize = TRUE) %>%
+            visInteraction(multiselect = TRUE)
+          
+        } else if (input$disp_network_layout == "hierarchical") {
+          
+          visIgraph(g, idToLabel = FALSE) %>%
+            visHierarchicalLayout(direction = "UD", levelSeparation = 130, nodeSpacing = 120, sortMethod = "hubsize") %>%
+            visOptions(highlightNearest = input$disp_highlight_nearest, autoResize = TRUE) %>%
+            visInteraction(multiselect = TRUE)
+          
+        } # end else if
+        
+      }) # end output$disp_network
+      
+      
+      ### observer to select nodes by id
+      observeEvent(input$disp_select_by_id, ignoreNULL = FALSE, {
+        
+        ns <- session$ns
+        
+        if (is.null(input$disp_select_by_id))
+          visNetworkProxy(ns("disp_network")) %>% visUnselectAll()
+        else
+          visNetworkProxy(ns("disp_network")) %>% visSelectNodes(id = input$disp_select_by_id)
+        
+      }) # end observeEvent
+      
+      
+      ### observer to select nodes by drug
+      observeEvent(input$disp_select_by_drug, ignoreNULL = FALSE, {
+        
+        ns <- session$ns
+        
+        if (is.null(input$disp_select_by_drug))
+          visNetworkProxy(ns("disp_network")) %>% visUnselectAll()
+        else {
+          g <- disp_igraph()
+          visNetworkProxy(ns("disp_network")) %>%
+            visSelectNodes(id = V(g)$name[which(V(g)$drug %in% input$disp_select_by_drug)])
+        } # end else
+        
+      }) # end observeEvent
+      
+      
+      ### observer to select nodes by community
+      observeEvent(input$disp_select_by_comm, ignoreNULL = FALSE, {
+        
+        ns <- session$ns
+        
+        if (is.null(input$disp_select_by_comm))
+          visNetworkProxy(ns("disp_network")) %>% visUnselectAll()
+        else {
+          g <- disp_igraph()
+          visNetworkProxy(ns("disp_network")) %>%
+            visSelectNodes(id = V(g)$name[which(V(g)$community %in% input$disp_select_by_comm)]) 
+        } # end else
+        
+      }) # end observeEvent
+      
+      
+      ### observer to add selected nodes form the dispersion network into the scatter wells table
+      observe({
+        
+        input$disp_network_add_selected
+        
+        ns <- session$ns
+        
+        visNetworkProxy(ns("disp_network")) %>% visGetSelectedNodes()
+        
+        validate(need(input$disp_network_selectedNodes, message = FALSE))
+        
+        selected_wells(list(wells = setdiff(input$disp_network_selectedNodes, "Control")))
+        
+      }) # end observe
+      
+      return(selected_wells)
+      
+    } # end function
+    
+  ) # end moduleServer
+  
+} # end Vis_disp_network_S
+
+
+### Server for Samples network tab
+# @param id String, id of corresponding Vis_samples_network_UI module
+# @param plots_set Reactive expression containing a list of data frames for visualizations in Plots view
+# @return selected_wells Reactive value containing a list of clicked well identifiers
+Vis_samples_network_S <- function(id, plots_set) {
+  
+  moduleServer(
+    id,
+    
+    function(input, output, session) {
+      
+      ### validate and reference the plots_set
+      plots_set_ref <- reactive({
+        validate(need(plots_set(), message = FALSE))
+        return(plots_set())
+      }) # end plots_set_ref
+      
+      selected_wells <- reactiveVal(NULL)
+      
+      ### update plot-specific controls that depend on the input plots_set
+      observe({
+        
+        validate(need(plots_set_ref(), message = FALSE))
+        
+        updateSelectInput(session, "samples_node_color_channel", choices = as.character(plots_set_ref()$channels_table[plots_set_ref()$channels,]$desc))
+        
+      }) # end observe
+      
+      
+      ### samples graph igraph object
+      samples_igraph <- reactive({
+        
+        validate(need(plots_set_ref()$drugs, message = FALSE))
+        
+        nodes <- data.frame(
+          id = plots_set_ref()$drugs$file,
+          color.border = "#999999",
+          borderWidth = 1,
+          color.highlight.border = "#d62d20",
+          value = plots_set_ref()$drugs$live_cells,
+          degree = plots_set_ref()$drugs$degree_samples,
+          sim_vs_ctr = plots_set_ref()$drugs$sim_vs_control,
+          sim_vs_all = plots_set_ref()$drugs$sim_vs_all,
+          community = plots_set_ref()$drugs$community,
+          control = plots_set_ref()$drugs$control,
+          drug = plots_set_ref()$drugs$drug,
+          clique_ids = plots_set_ref()$drugs$clique_ids
+        ) # end data.frame 
+        
+        # highlight control nodes
+        nodes[which(nodes$control == 1),]$color.border <- "#008744"
+        nodes[which(nodes$control == 1),]$borderWidth <- 1.5
+        
+        # assign node color based on selected metric
+        if (input$samples_node_color_metric == "none") {
+          
+          nodes$color.background <- "#f1f1f1"
+          nodes$color.highlight.background <- "#f1f1f1"
+          
+        } else {
+          
+          if (input$samples_node_color_metric == "degree")
+            col_values <- plots_set_ref()$drugs$degree_samples
+          else if (input$samples_node_color_metric == "cells")
+            col_values <- plots_set_ref()$drugs$live_cells
+          else if (input$samples_node_color_metric == "mfi")
+            col_values <- plots_set_ref()$mfis[,input$samples_node_color_channel]
+          else if (input$samples_node_color_metric == "sim_vs_ctr")
+            col_values <- plots_set_ref()$drugs$sim_vs_control
+          else if (input$samples_node_color_metric == "sim_vs_all")
+            col_values <- plots_set_ref()$drugs$sim_vs_all
+          
+          col_fun <- colorRamp2(c(min(col_values), median(col_values), max(col_values)),
+                                c("#0057e7", "#fdf498", "#d62d20"))
+          nodes$color.background <- col_fun(col_values)
+          nodes$color.highlight.background <- col_fun(col_values)
+          
+        } # end else
+        
+        # assign node label based on user input
+        if (input$samples_node_label == "well") {
+          nodes$label <- plots_set_ref()$drugs$file
+        } else if (input$samples_node_label == "drug") {
+          
+          if ("concentration" %in% colnames(plots_set_ref()$drugs))
+            nodes$label <- paste(plots_set_ref()$drugs$drug, plots_set_ref()$drugs$concentration, sep = "_")
+          else
+            nodes$label <- plots_set_ref()$drugs$drug
+          
+        } else if (input$samples_node_label == "comm") {
+          nodes$label <- plots_set_ref()$drugs$community
+        } # end esle if
+        
+        # make edges data frame
+        edges <- data.frame(
+          from = plots_set_ref()$samples_network$from,
+          to = plots_set_ref()$samples_network$to,
+          weight = plots_set_ref()$samples_network$weight
+        ) # end data.frame
+        
+        # assign edge colors
+        if (input$samples_edge_color_metric == "weight") {
+          edges$color <- plots_set_ref()$samples_network$color_weight
+        } else {
+          edges$color <- "#cbcbcb"
+        } # end esle
+        
+        # make igraph object
+        g <- graph_from_data_frame(edges, directed = FALSE, vertices = nodes)
+        
+        return(g)
+        
+      }) # end samples_igraph
+      
+      
+      filtered_samples_igraph <- reactive({
+        
+        g <- samples_igraph()
+        
+        validate(need(g, message = FALSE))
+        
+        g <- delete_vertices(g, v = which(V(g)$degree < input$node_degree_range[1]))
+        g <- delete_vertices(g, v = which(V(g)$degree > input$node_degree_range[2]))
+        
+        g <- delete_vertices(g, v = which(V(g)$sim_vs_ctr < input$sim_vs_ctr_range[1]))
+        g <- delete_vertices(g, v = which(V(g)$sim_vs_ctr > input$sim_vs_ctr_range[2]))
+        
+        g <- delete_vertices(g, v = which(V(g)$sim_vs_all < input$sim_vs_all_range[1]))
+        g <- delete_vertices(g, v = which(V(g)$sim_vs_all > input$sim_vs_all_range[2]))
+        
+        clique_choices <- NULL
+        
+        for (i in 1:length(V(g))) {
+          if (!is.na(V(g)$clique_ids[i]))
+            clique_choices <- union(clique_choices, strsplit(V(g)$clique_ids[i], split = ",")[[1]])
+        } # end for
+        
+        # update the node id input box
+        updateSelectInput(session, "samples_select_by_id", choices = V(g)$name[order(V(g)$name)])
+        updateSelectInput(session, "samples_select_by_drug", choices = V(g)$drug[order(V(g)$drug)])
+        updateSelectInput(session, "samples_select_by_comm", choices = V(g)$community[order(as.integer(V(g)$community))])
+        updateSelectInput(session, "samples_select_by_clique", choices = clique_choices[order(clique_choices)])
+        
+        return(g)
+        
+      }) # end filtered_samples_igraph
+      
+      
+      ### render the well clustering network
+      output$samples_network <- renderVisNetwork({
+        
+        g <- filtered_samples_igraph()
+        
+        validate(need(g, message = FALSE))
+        
+        # render the network from igraph object
+        visIgraph(g, idToLabel = FALSE, layout = input$samples_network_layout, randomSeed = 211) %>%
+          visOptions(highlightNearest = input$samples_highlight_nearest, autoResize = TRUE) %>%
+          visInteraction(multiselect = TRUE, hideEdgesOnDrag = TRUE)
+        
+      }) # end output$samples_network
+      
+      
+      ### observer to select nodes by id
+      observeEvent(input$samples_select_by_id, ignoreNULL = FALSE, {
+        
+        ns <- session$ns
+        
+        if (is.null(input$samples_select_by_id))
+          visNetworkProxy(ns("samples_network")) %>% visUnselectAll()
+        else
+          visNetworkProxy(ns("samples_network")) %>% visSelectNodes(id = input$samples_select_by_id)
+        
+      }) # end observeEvent
+      
+      
+      ### observer to select nodes by drug
+      observeEvent(input$samples_select_by_drug, ignoreNULL = FALSE, {
+        
+        ns <- session$ns
+        
+        if (is.null(input$samples_select_by_drug))
+          visNetworkProxy(ns("samples_network")) %>% visUnselectAll()
+        else {
+          g <- samples_igraph()
+          visNetworkProxy(ns("samples_network")) %>%
+            visSelectNodes(id = V(g)$name[which(V(g)$drug %in% input$samples_select_by_drug)])
+        } # end else
+        
+      }) # end observeEvent
+      
+      
+      ### observer to select nodes by community
+      observeEvent(input$samples_select_by_comm, ignoreNULL = FALSE, {
+        
+        ns <- session$ns
+        
+        if (is.null(input$samples_select_by_comm))
+          visNetworkProxy(ns("samples_network")) %>% visUnselectAll()
+        else {
+          g <- samples_igraph()
+          visNetworkProxy(ns("samples_network")) %>%
+            visSelectNodes(id = V(g)$name[which(V(g)$community %in% input$samples_select_by_comm)]) 
+        } # end else
+        
+      }) # end observeEvent
+      
+      
+      ### observer to select nodes by clique
+      observeEvent(input$samples_select_by_clique, ignoreNULL = FALSE, {
+        
+        ns <- session$ns
+        
+        if (is.null(input$samples_select_by_clique))
+          visNetworkProxy(ns("samples_network")) %>% visUnselectAll()
+        else {
+          g <- samples_igraph()
+          
+          ids <- NULL
+          for (c in input$samples_select_by_clique) {
+            ids <- union(ids, strsplit(plots_set_ref()$cliques[which(plots_set_ref()$cliques$ID == c),]$File, split = ",")[[1]])
+          } # end for
+          
+          visNetworkProxy(ns("samples_network")) %>%
+            visSelectNodes(id = ids) 
+        } # end else
+        
+      }) # end observeEvent
+      
+      
+      ### observer to add selected nodes form the samples network into the scatter well table
+      observe({
+        
+        input$samples_network_add_selected
+        
+        ns <- session$ns
+        
+        visNetworkProxy(ns("samples_network")) %>% visGetSelectedNodes()
+        
+        validate(need(input$samples_network_selectedNodes, message = FALSE))
+        
+        selected_wells(list(wells = input$samples_network_selectedNodes))
+        
+      }) # end observe
+      
+      return(selected_wells)
+      
+    } # end function
+    
+  ) # end moduleServer
+  
+} # end Vis_samples_network_S
+
+
+### Server for Scatterplot tab
+# @param id String, id of corresponding Vis_scatterplot_UI module
+# @param event_plots_data Reactive expression containing a list of input values for scatterplot visualization
+Vis_scatterplot_S <- function(id, event_plots_data) {
+  
+  moduleServer(
+    id,
+    
+    function(input, output, session) {
+      
+      ### validate and reference the event_plots_data
+      event_plots_data_ref <- reactive({
+        validate(need(event_plots_data(), message = FALSE))
+        return(event_plots_data())
+      }) # end event_plots_data_ref
+      
+      
+      ### return the selected height of the static scatterplot
+      scatterplot_height <- function() {
+        return(as.integer(input$height))
+      } # end scatterplot_height
+      
+      
+      ### function to make the static scatterplot
+      output$scatterplot <- renderPlot(height = scatterplot_height, {
+        
+        d <- event_plots_data_ref()$d
+        
+        x_lab <- names(event_plots_data_ref()$channel_choices)[which(event_plots_data_ref()$channel_choices == event_plots_data_ref()$scatter_x)]
+        y_lab <- names(event_plots_data_ref()$channel_choices)[which(event_plots_data_ref()$channel_choices == event_plots_data_ref()$scatter_y)]
+        
+        colnames(d)[1] <- "x"
+        colnames(d)[2] <- "y"
+        
+        if (input$color == "none") { # no point colors
+          
+          p <- ggplot(d, aes(x = x, y = y)) +
+            geom_point(size = as.double(input$point_size), alpha = 0.7) +
+            labs(x = x_lab, y = y_lab) +
+            theme_light() +
+            theme(axis.text = element_text(size = 18), axis.title = element_text(size = 20))
+          
+          if (input$margins == "none")
+            p
+          else
+            ggMarginal(p, type = input$margins, size = 5)
+          
+        } else if (input$color == "density") { # color by density
+          
+          p <- ggplot(d, aes(x = x, y = y, color = density)) +
+            geom_point(size = as.double(input$point_size), alpha = 0.8) +
+            labs(x = x_lab, y = y_lab) +
+            theme_light() +
+            theme(legend.direction = "horizontal", legend.position = c("bottom"), legend.justification = c(-0.03,0),
+                  legend.text = element_text(size = 14, angle = 45, hjust = 1), legend.title = element_text(size = 14),
+                  axis.text = element_text(size = 18), axis.title = element_text(size = 20)) +
+            scale_color_viridis_c()
+          
+          if (input$margins == "none")
+            p
+          else
+            ggMarginal(p, type = input$margins, size = 5)
+          
+        } else { # color by variables
+          
+          p <- ggplot(d, aes(x = x, y = y, color = var_name)) +
+            geom_point(size = as.double(input$point_size), alpha = 0.8) +
+            labs(x = x_lab, y = y_lab) +
+            theme_light() +
+            theme(legend.direction = "horizontal", legend.position = c("bottom"), legend.justification = c(-0.03,0),
+                  legend.title = element_blank(), legend.text = element_text(size = 14),
+                  axis.text = element_text(size = 18), axis.title = element_text(size = 20)) +
+            guides(color = guide_legend(override.aes = list(size = 5))) +
+            scale_color_manual(values = setNames(unique(d$var_color), unique(d$var_name)))
+          
+          if (input$margins == "none")
+            p
+          else
+            ggMarginal(p, type = input$margins, size = 5, groupColour = TRUE, groupFill = TRUE)
+          
+        } # end else
+        
+      }) # end output$scatterplot
+      
+    } # end function
+    
+  ) # end moduleServer
+  
+} # end Vis_scatterplot_S
+
+
+### Server for Violins tab
+# @param id String, id of corresponding Vis_violins_UI module
+# @param event_plots_data Reactive expression containing a list of input values for violins visualization
+Vis_violins_S <- function(id, event_plots_data) {
+  
+  moduleServer(
+    id,
+    
+    function(input, output, session) {
+      
+      ### validate and reference the event_plots_data
+      event_plots_data_ref <- reactive({
+        validate(need(event_plots_data(), message = FALSE))
+        return(event_plots_data())
+      }) # end event_plots_data_ref
+      
+      
+      ### update UI elements when new data is received
+      updateSelectInput(session, "channels", choices = event_plots_data_ref()$channel_choices, selected = event_plots_data_ref()$channel_choices)
+      
+      
+      ### data for the channel intensities plot
+      violins_data <- reactive({
+        
+        validate(need(input$channels, message = FALSE))
+        
+        d <- event_plots_data_ref()$data
+        
+        if (input$color == "none") {
+          
+          data_long <- NULL
+          for (c in input$channels)
+            data_long <- rbind(data_long, cbind(d[,c], rep(names(event_plots_data_ref()$channel_choices)[which(event_plots_data_ref()$channel_choices == c)], nrow(d))))
+          
+          data_long <- as.data.frame(data_long)
+          
+          colnames(data_long) <- c("intensity", "channel")
+          
+          data_long$intensity <- as.double(data_long$intensity)
+          data_long$channel <- as.factor(data_long$channel)
+          
+        } else {
+          
+          data_long <- NULL
+          for (c in input$channels)
+            data_long <- rbind(data_long, cbind(d[,c], rep(names(event_plots_data_ref()$channel_choices)[which(event_plots_data_ref()$channel_choices == c)], nrow(d)),
+                                                d[,event_plots_data_ref()$selected_var],
+                                                d[,paste0(event_plots_data_ref()$selected_var, "_color")]))
+          
+          data_long <- as.data.frame(data_long)
+          
+          colnames(data_long) <- c("intensity", "channel", "var_name", "var_color")
+          
+          data_long$intensity <- as.double(data_long$intensity)
+          data_long$channel <- as.factor(data_long$channel)
+          data_long$var_name <- as.factor(data_long$var_name)
+          data_long$var_color <- as.character(data_long$var_color)
+          
+        } # end else
+        
+        return(data_long)
+        
+      }) # end violins_data()
+      
+      
+      ### width of violins plot, depending on selected type, auto (fill width of the browser window) or 2000px
+      plot_width <- function() {
+        
+        if (input$width_type == "auto")
+          return("auto")
+        else
+          return(2000)
+        
+      } # end plot_width 
+      
+      
+      ### render the channel intensities plot
+      output$violins_plot <- renderPlot(width = plot_width, {
+        
+        validate(need(violins_data(), message = FALSE))
+        
+        d <- violins_data()
+        
+        violins_var <- isolate(input$color)
+        
+        if (violins_var == "none") {
+          
+          ggplot(d, aes(x = channel, y = intensity)) +
+            geom_violin(trim = FALSE, fill = "#f1f1f1", alpha = 0.7) +
+            geom_boxplot(width = 0.1, fill = "#f1f1f1", alpha = 0.7) +
+            labs(x = NULL) +
+            theme_light() +
+            theme(axis.text = element_text(size = 18), axis.title = element_text(size = 20),
+                  axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "none")
+          
+        } else {
+          
+          ggplot(d, aes(x = channel, y = intensity, fill = var_name)) +
+            geom_violin(trim = FALSE, alpha = 0.7) +
+            geom_boxplot(width = 0.1, position = position_dodge(width = 0.9), alpha = 0.7) +
+            labs(x = NULL) +
+            theme_light() +
+            theme(axis.text = element_text(size = 18), axis.title = element_text(size = 20),
+                  axis.text.x = element_text(angle = 45, hjust = 1),
+                  legend.direction = "horizontal", legend.position = c("bottom"), legend.justification = c(-0.03,0),
+                  legend.text = element_text(size = 14), legend.title = element_blank()) +
+            scale_fill_manual(values = setNames(unique(d$var_color), unique(d$var_name)))
+          
+        } # end else
+        
+      }) # end output$violins_plot
+      
+    } # end function
+    
+  ) # end moduleServer
+  
+} # end Vis_violins_S
+
+
+########################################################################################################################
+### --- helper functions --- ###########################################################################################
+########################################################################################################################
+
+### read COMPARE output and FCS files and generate data to be visualized in Plots tab
+# @param channels Character vector of channel names from channels_step9 input
+# @param paths Reactive expression containing a list of paths to data and out folders
+# @return plots_set List of data frames for visualizations in Plots view
+get_plots_set <- function(channels, paths) {
+  
+  # load the COMPARE RData file from Step 8
+  e = new.env()
+  rdata_obj <- load(paste0(paths()$out, "compare_clustering.RData"), envir = e)
+  rdata_obj <- e[[rdata_obj]]
+  
+  ### drugs table
+  drugs <- read.table(paste0(paths()$out, "drugs_table.tsv"), header = TRUE, sep = "\t")
+  
+  drugs$control <- as.character(drugs$control)
+  drugs$community <- as.character(drugs$community)
+  
+  
+  #### make data frame for samples network
+  
+  samples_network <- as.data.frame(cbind(as_edgelist(rdata_obj$samples_graph, names = TRUE),
+                                             as.double(E(rdata_obj$samples_graph)$weight)))
+  colnames(samples_network) <- c("from","to","weight")
+  
+  samples_network$weight <- as.double(samples_network$weight)
+  
+  # option to color edges by weight for when the network is rendered
+  col_fun <- colorRamp2(c(min(samples_network$weight), median(samples_network$weight), max(samples_network$weight)),
+                        c("#008744", "#f1f1f1", "#a200ff"))
+  samples_network$color_weight <- col_fun(samples_network$weight)
+  
+  # round similarity scores
+  drugs$sim_vs_control <- round(drugs$sim_vs_control, 3)
+  drugs$sim_vs_all <- round(drugs$sim_vs_all, 3)
+  
+  # calculate node degrees in samples network
+  drugs$degree_samples <- NA
+  for (i in 1:nrow(drugs)) {
+    drugs[i,]$degree_samples <- length(which(samples_network$from == drugs[i,]$file)) + length(which(samples_network$to == drugs[i,]$file))
+  } # end for
+  
+  
+  ### make data frame for dispersion network
+  
+  disp_network <- as.data.frame(cbind(as_edgelist(rdata_obj$dispersion_graph, names = TRUE),
+                                          as.double(E(rdata_obj$dispersion_graph)$weight)))
+  colnames(disp_network) <- c("from","to","weight")
+  
+  disp_network$weight <- as.double(disp_network$weight)
+  
+  # calculate node degrees in samples network
+  drugs$degree_disp <- NA
+  for (i in 1:nrow(drugs)) {
+    drugs[i,]$degree_disp <- length(which(disp_network$from == drugs[i,]$file)) + length(which(disp_network$to == drugs[i,]$file))
+  } # end for
+  
+  # option to color edges by weight for when the network is rendered
+  col_fun <- colorRamp2(c(min(disp_network$weight), median(disp_network$weight), max(disp_network$weight)),
+                        c("#008744", "#f1f1f1", "#a200ff"))
+  disp_network$color_weight <- col_fun(disp_network$weight)
+  
+  
+  ### read the FCS files and get the number of cells, MFI values, and channels table
+  
+  mfis <- matrix(data = NA, nrow = nrow(drugs), ncol = length(channels) + 1)
+  colnames(mfis) <- c("well", channels)
+  mfis[,"well"] <- drugs$file
+  
+  for (i in 1:nrow(drugs)) {
+    
+    well <- drugs[i,]$file
+    fname <- paste0(well, ".fcs")
+    
+    # read FCS file
+    ff <- read.FCS(paste0(paths()$data, fname), transformation = FALSE)
+    
+    # channels table
+    channels_table <- ff@parameters@data[,c("name","desc")]
+    
+    # get MFI values for provided channel names
+    expr_data <- ff@exprs[,channels, drop = FALSE]
+    
+    for (channel in channels) {
+      
+      dt_tmp <- expr_data[,channel]
+      
+      ### Morteza's code to calculate MFI
+      dt_tmp = dt_tmp[which(0 <= dt_tmp)]                         # N.B.: which igonores NA and NaNs. Non-positives are always non-positives even in presence of drift
+      IQR_ = IQR(dt_tmp)                                          # inter-quantile region
+      quartiles_ = quantile(dt_tmp, probs = c(.25, .75))          # 25th and 75th percentiles
+      lowWhisker_ = max(min(dt_tmp), quartiles_[1] - IQR_*1.5)    # lower whisker
+      upWhisker_ = min(max(dt_tmp), quartiles_[2] + IQR_*1.5)
+      mfis[which(mfis[,"well"] == well), channel] = round(median(dt_tmp[lowWhisker_ < dt_tmp & dt_tmp < upWhisker_]), 3)
+      
+    } # end for
+    
+  } # end for
+  
+  mfis <- as.data.frame(mfis)
+  channels_table <- as.data.frame(channels_table)
+  
+  rownames(channels_table) <- channels_table$name
+  
+  # mark which plots were processed for Plots tabs
+  channels_table$processed_for_plots <- NA
+  channels_table[channels,]$processed_for_plots <- "yes"
+  
+  
+  colnames(mfis) <- c("well", channels_table[channels,]$desc)
+  
+  for (desc in channels_table[channels,]$desc) {
+    mfis[,desc] <- as.double(mfis[,desc])
+  } # end for
+  
+  
+  ####### cliques UMAP and centroids
+  
+  umap <- rdata_obj$umap_
+  centroids <- read.table(paste0(paths()$out, "Centroids.tsv"), sep = "\t", header = TRUE, row.names = 1)
+  
+  colnames(centroids) <- channels_table[channels,]$desc
+  
+  
+  ####### cliques table
+  
+  cliques <- read.table(paste0(paths()$out, "Cliques.tsv"), sep = "\t", header = TRUE)
+  
+  cliques$ID <- paste0("C", cliques$ID) # to match cliques ID in umap and centroids tables
+  cliques$length <- NA # number of wells in clique
+  cliques$total_live_cells <- NA # total events in clique
+  
+  for (i in 1:nrow(cliques)) {
+    cliques[i,]$length <- length(strsplit(cliques[i,]$File, split = ",")[[1]])
+    cliques[i,]$total_live_cells <- sum(as.numeric(strsplit(cliques[i,]$live_cels, split = ",")[[1]]))
+    
+  } # end for 
+  
+  drugs$clique_ids <- NA
+  
+  for (i in 1:nrow(drugs)) {
+    
+    for (c in 1:nrow(cliques)) {
+      
+      if (drugs$file[i] %in% strsplit(cliques[c,]$File, split = ",")[[1]]) {
+        
+        if (is.na(drugs[i,]$clique_ids))
+          drugs[i,]$clique_ids <- cliques[c,]$ID
+        else
+          drugs[i,]$clique_ids <- paste(c(drugs[i,]$clique_ids, cliques[c,]$ID), collapse = ",")
+        
+      } # end if
+      
+    } # end for
+    
+  } # end for
+  
+  # separate control cluster wells from the rest
+  ctr_wells <- drugs[which(drugs$community == "0"),]
+  
+  
+  return(
+    list(
+      drugs = drugs,
+      samples_network = samples_network,
+      disp_network = disp_network,
+      mfis = mfis,
+      channels = channels,
+      channels_table = channels_table,
+      umap = umap,
+      centroids = centroids,
+      cliques = cliques,
+      ctr_wells = ctr_wells
+    ) # end list
+  ) # end return
+  
+} # end get_plots_set
+
+
+### Function to get density of points in 2 dimensions, source: https://slowkow.com/notes/ggplot2-color-by-density/
+# @param x Numeric vector
+# @param y Numeric vector
+# @param n Create a square n by n grid to compute density
+# @return The density within each square
 get_density <- function(x, y, ...) {
   dens <- MASS::kde2d(x, y, ...)
   ix <- findInterval(x, dens$x)
@@ -37,12 +2244,12 @@ get_density <- function(x, y, ...) {
   return(dens$z[ii])
 } # end get_density
 
+
 ########################################################################################################################
-########################################################################################################################
-### --- Shiny UI --- ###################################################################################################
-########################################################################################################################
+### --- main Sniny app UI --- ##########################################################################################
 ########################################################################################################################
 
+### generate UI for Workflow and Tables views and call plots_UI() to generate UI for Plots view
 ui <- navbarPage(
   
   title = "COMPARE-suite",
@@ -50,7 +2257,7 @@ ui <- navbarPage(
   theme = shinytheme("simplex"),
   
   tabPanel(
-    title = "Workflow", ################################################################################################
+    title = "Workflow",
     useShinyjs(),
     
     # change body background
@@ -279,7 +2486,7 @@ ui <- navbarPage(
           column(
             8,
             div(uiOutput("uio_channels_step9"), style = "font-size:95%"),
-            bsPopover("uio_channels_step9", title = NULL, content = "Channels to include in interactive visualizations",
+            bsPopover("uio_channels_step9", title = NULL, content = "Channels to include in interactive plots",
                       placement = "right", trigger = "focus", options = list(container = "body"))
           ) # end column
         ), # end fluidRow
@@ -290,12 +2497,12 @@ ui <- navbarPage(
         ### RUN WORKFLOW
         fluidRow(
           column(
-            2,
+            3,
             actionButton("run_workflow", "Run", width = "100%")
           ), # end column
           column(
-            10,
-            div(textOutput("run_message_center"), style = "margin-top:9px; color:#c73824")
+            9,
+            div(textOutput("run_error_message"), style = "margin-top:9px; color:#c73824")
           ) # end column
         ), # end fluidRow
         
@@ -306,7 +2513,7 @@ ui <- navbarPage(
           tags$style(
             "#message_output{font-size:12px; background: #ffffff;
                              border: 1px; border-style: solid; border-color: #dddddd; border-radius: 4px;
-                             padding: 10px; height: 638px; overflow: auto; margin-top: 22px;}"
+                             padding: 10px; height: 600px; overflow: auto; margin-top: 20px;}"
           ), # end tags$style
           
           # Shiny to javascript binding to scroll message_output to bottom once called
@@ -326,593 +2533,67 @@ ui <- navbarPage(
     
   ), # end tabPanel
   
+  
   tabPanel(
-    title = "Plots", ###################################################################################################
+    title = "Plots",
     useShinyjs(),
     
-    # change body background
-    tags$head(tags$style(HTML("body {background-color:#ffffff;}"))),
-    
-    # change background of active tabpanel title
-    tags$style(HTML(".tabbable > .nav > li[class=active] > a {background-color:#ffffff;}")),
-    
-    fluidRow(
-      
-      column(
-        8,
-        
-        tabsetPanel(
-          
-          tabPanel(
-            title = "UMAP",
-            br(),
-            
-            fluidRow(
-              
-              column(
-                4,
-                div(selectInput("umap_channel", label = "Channel:", choices = NULL, selected = NULL, width = "100%"),
-                    style = "font-size:95%")
-              ), # end column
-              
-              column(
-                2,
-                div(selectInput("umap_x", "X axis:", choices = NULL, selected = NULL, width = "100%"), style = "font-size:95%")
-              ),
-              
-              column(
-                2,
-                div(selectInput("umap_y", "Y axis:", choices = NULL, selected = NULL, width = "100%"), style = "font-size:95%")
-              ), # end column
-              
-              column(
-                2,
-                div(selectInput("umap_dot_size", "Clique size:", choices = c("None" = "none", "Events" = "total_live_cells", "Wells" = "length"), selected = "total_live_cells", width = "100%"),
-                    style = "font-size:95%")
-              ), # end column
-              
-              column(
-                2,
-                div(selectInput("umap_labels", "Clique label:", choices = c("None", "Clique ID", "Community"), selected = "Clique ID"),
-                    style = "font-size:95%")
-              ) # end column
-              
-            ), # end fluidRow
-            
-            fluidRow(
-              column(
-                2,
-                textOutput("umap_plot_hover_name"),
-                textOutput("umap_plot_hover_centr")
-              ), # end column
-              column(
-                10,
-                textOutput("umap_plot_hover_wells"),
-                textOutput("umap_plot_hover_drugs")
-              ) # end column
-            ), # end fluidRow
-            
-            plotOutput( "umap_plot", height = "760px", click = "umap_plot_click", hover = hoverOpts(id = "umap_plot_hover", delay = 15))
-            
-          ), # end tabPanel
-          
-          
-          tabPanel(
-            title = "Dispersion network",
-            br(),
-            
-            tabsetPanel(
-              
-              tabPanel(
-                title = "Network settings",
-                br(),
-                
-                fluidRow(
-                  
-                  column(
-                    2,
-                    div(selectInput("disp_network_layout", "Layout:",
-                                    choices = c("FR" = "layout_with_fr", "Hierarchical" = "hierarchical"),
-                                    selected = "layout_with_fr", width = "100%"),
-                        style = "font-size:95%"),
-                    bsPopover("disp_network_layout", title = NULL, content = "FR = Fruchterman-Reingold",
-                              placement = "right", trigger = "focus", options = list(container = "body"))
-                  ), # end column
-                  
-                  column(
-                    2,
-                    div(selectInput("disp_node_color_metric", "Node color:",
-                                    choices = c("None" = "none", "MFI" = "mfi", "Degree" = "degree", "Cells" = "cells",
-                                                "Sim vs ctr" = "sim_vs_ctr", "Sim vs all" = "sim_vs_all"),
-                                    selected = "none"),
-                        style = "font-size:95%")
-                  ), # end column
-                  
-                  column(
-                    4,
-                    div(selectInput("disp_node_color_channel", label = "Channel for node MFI:",
-                                    choices = NULL, selected = NULL, width = "100%"),
-                        style = "font-size:95%")
-                  ), # end column
-                  
-                  column(
-                    2,
-                    div(selectInput("disp_node_label", "Node label:",
-                                    choices = c("Well" = "well", "Drug" = "drug", "Community" = "comm"),
-                                    selected = "well"),
-                        style = "font-size:95%")
-                  ), # end column
-                  
-                  column(
-                    2,
-                    div(selectInput("disp_edge_color_metric", "Edge color:",
-                                    choices = c("None" = "none", "Weight" = "weight"),
-                                    selected = "none"),
-                        style = "font-size:95%")
-                  ) # end column
-                  
-                ) # end fluidRow
-                
-              ), # end tabPanel
-              
-              tabPanel(
-                title = "Select nodes",
-                br(),
-                
-                fluidRow(
-                  
-                  column(
-                    4,
-                    div(selectInput("disp_select_by_id", label = "Well ID:", choices = NULL, selected = NULL, multiple = TRUE, width = "100%"),
-                        style = "font-size:95%")
-                  ), # end column
-                  
-                  column(
-                    4,
-                    div(selectInput("disp_select_by_drug", label = "Drug:", choices = NULL, selected = NULL, multiple = TRUE, width = "100%"),
-                        style = "font-size:95%")
-                  ), # end column
-                  
-                  column(
-                    4,
-                    div(selectInput("disp_select_by_comm", label = "Community:", choices = NULL, selected = NULL, multiple = TRUE, width = "100%"),
-                        style = "font-size:95%")
-                  ) # end column
-                  
-                ) # end fluidRow
-                
-              ) # end tabPanel
-              
-            ), # end tabsetPanel
-            
-            fluidRow(
-              
-              column(
-                10,
-                div(checkboxInput("disp_highlight_nearest", "Highlight nearest neighbors", value = FALSE, width = "100%"),
-                    style = "font-size:95%; margin-top:-10px")
-              ), # end column
-              
-              column(
-                2,
-                div(actionButton("disp_network_add_selected", "Add to table" , width = "100%"), style = "margin-bottom: 20px")
-              ) # end column
-              
-            ), # end fluidRow
-            
-            div(
-              style = "background: #ffffff; border: 1px; border-style: solid; border-color: #cccccc; border-radius: 4px;
-                       margin-bottom: 22px; padding: 0px",
-              visNetworkOutput("disp_network", height = 660)
-            ) # end div
-            
-          ), # end tabPanel
-          
-          tabPanel(
-            title = "Samples network",
-            br(),
-            
-            tabsetPanel(
-              
-              tabPanel(
-                title = "Network settings",
-                br(),
-                
-                fluidRow(
-                  
-                  column(
-                    2,
-                    div(selectInput("samples_network_layout", "Layout:",
-                                    choices = c("FR" = "layout_with_fr", "KK" = "layout_with_kk"),
-                                    selected = "layout_with_fr"),
-                        style = "font-size:95%"),
-                    bsPopover("samples_network_layout", title = NULL, content = "FR = Fruchterman-Reingold; KK = Kamada-Kawai",
-                              placement = "right", trigger = "hover", options = list(container = "body"))
-                  ), # end column
-                  
-                  column(
-                    2,
-                    div(selectInput("samples_node_color_metric", "Node color:",
-                                     choices = c("None" = "none", "MFI" = "mfi", "Degree" = "degree", "Cells" = "cells", "Sim vs ctr" = "sim_vs_ctr", "Sim vs all" = "sim_vs_all"),
-                                     selected = "none"),
-                        style = "font-size:95%")
-                  ), # end column
-                  
-                  column(
-                    4,
-                    div(selectInput("samples_node_color_channel", "Channel for node MFI:", choices = NULL, multiple = FALSE, selected = NULL, width = "100%"),
-                        style = "font-size:95%")
-                  ), # end column
-                  
-                  column(
-                    2,
-                    div(selectInput("samples_node_label", "Node label:", choices = c("Well" = "well", "Drug" = "drug", "Community" = "comm"), selected = "well"),
-                        style = "font-size:95%")
-                  ), # end column
-                  
-                  column(
-                    2,
-                    div(selectInput("samples_edge_color_metric", "Edge color:", choices = c("None" = "none", "Weight" = "weight"), selected = "none"),
-                        style = "font-size:95%")
-                  ) # end column
-                  
-                ) # end fluidRow
-                
-              ), # end tabPanel
-              
-              tabPanel(
-                title = "Select nodes",
-                br(),
-                
-                fluidRow(
-                  
-                  column(
-                    3,
-                    div(selectInput("samples_select_by_id", label = "Well ID:", choices = NULL, selected = NULL, multiple = TRUE, width = "100%"),
-                        style = "font-size:95%")
-                  ), # end column
-                  
-                  column(
-                    3,
-                    div(selectInput("samples_select_by_drug", label = "Drug:", choices = NULL, selected = NULL, multiple = TRUE, width = "100%"),
-                        style = "font-size:95%")
-                  ), # end column
-                  
-                  column(
-                    3,
-                    div(selectInput("samples_select_by_comm", label = "Community:", choices = NULL, selected = NULL, multiple = TRUE, width = "100%"),
-                        style = "font-size:95%")
-                  ), # end column
-                  
-                  column(
-                    3,
-                    div(selectInput("samples_select_by_clique", label = "Clique ID:", choices = NULL, selected = NULL, multiple = TRUE, width = "100%"),
-                        style = "font-size:95%")
-                  ) # end column
-                  
-                ) # end fluidRow
-                
-              ), # end tabPanel
-            
-              tabPanel(
-                title = "Filter nodes",
-                br(),
-                
-                fluidRow(
-                  
-                  column(
-                    4,
-                    div(sliderInput("node_degree_range", "Node degree:", min = 1, max = 100, value = c(1,100), step = 1, width = "100%"),
-                        style = "font-size:95%")
-                  ), # end column
-                  
-                  column(
-                    4,
-                    div(sliderInput("sim_vs_ctr_range", "Similarity vs control:", min = 0, max = 100, value = c(0,100), step = 0.1, width = "100%"),
-                        style = "font-size:95%")
-                  ), # end column
-                  
-                  column(
-                    4,
-                    div(sliderInput("sim_vs_all_range", "Similarity vs all:", min = 0, max = 100, value = c(0,100), step = 0.1, width = "100%"),
-                        style = "font-size:95%")
-                  ) # end column
-                  
-                ) # end fluidRow
-                
-              ) # end tabPanel
-              
-            ), # end tabsetPanel
-            
-            fluidRow(
-              
-              column(
-                10,
-                div(checkboxInput("samples_highlight_nearest", "Highlight nearest neighbors", value = FALSE, width = "100%"),
-                    style = "font-size:95%; margin-top:-10px")
-              ), # end column
-              
-              column(
-                2,
-                div(actionButton("samples_network_add_selected", "Add to table" , width = "100%"), style = "margin-bottom: 20px")
-              ) # end column
-              
-            ), # end fluidRow
-            
-            div(
-              style = "background: #ffffff; border: 1px; border-style: solid; border-color: #cccccc; border-radius: 4px;
-                       margin-bottom: 22px; padding: 0px",
-              visNetworkOutput("samples_network", height = 660)
-            ) # end div
-            
-          ) # end tabPanel
-          
-        ) # end tabsetPanel
-        
-      ), # end column
-      
-      column(
-        4,
-        
-        tabsetPanel(
-          
-          tabPanel(
-            title = "Selected wells",
-            br(),
-            
-            fluidRow(
-              column(
-                4,
-                div(actionButton("scatter_wells_select_all_rows", "Select all", width = "100%"), style = "margin-bottom:20px")
-              ), # end column
-              column(
-                4,
-                div(actionButton("scatter_wells_clear_selected_rows", "Clear selected", width = "100%"), style = "margin-bottom:20px")
-              ), # end column
-              column(
-                4,
-                div(actionButton("scatter_wells_clear_table", "Clear table", width = "100%"), style = "margin-bottom:20px")
-              ) # end column
-            ), # end fluidRow
-            
-            div(
-              style = "margin-bottom: 22px; font-size: 89%; height: 720px; overflow: auto;",
-              dataTableOutput("scatter_wells_dt")
-            ) # end div
-            
-          ), # end tabPanel
-          
-          tabPanel(
-            title = "Control cluster wells",
-            br(),
-            
-            fluidRow(
-              column(
-                4,
-                div(actionButton("ctr_wells_select_all_rows", "Select all", width = "100%"), style = "margin-bottom:20px")
-              ), # end column
-              column(
-                4,
-                div(actionButton("ctr_wells_clear_selected_rows", "Clear selected", width = "100%"), style = "margin-bottom:20px")
-              ) # end column
-            ), # end fluidRow
-            
-            div(
-              style = "margin-bottom: 22px; font-size: 89%; height: 720px; overflow: auto;",
-              dataTableOutput("ctr_wells_dt")
-            ) # end div
-            
-          ) # end tabPanel
-          
-        ), # end tabsetPanel
-        
-        fluidRow(
-          
-          column(
-            6,
-            div(selectInput(inputId = "sample_var", label = "Sampling variable:",
-                            choices = c("Well ID" = "file", "Drug" = "drug", "Control" = "control", "Community" = "community"),
-                            selected = NULL, width = "100%"),
-                style = "font-size:95%")
-          ), # end column
-          
-          column(
-            6,
-            div(numericInput("max_per_group", "Events per group:", min = 1000, max = 50000, step = 1000, value = 5000),
-                style = "font-size:95%")
-          ) # end column
-          
-        ), # end fluidRow
-        
-        fluidRow(
-          
-          column(
-            4,
-            actionButton("plot_scatter", "Plot", width = "100%", style = "margin-bottom:20px")
-          ), # end column
-          
-          column(
-            8,
-            div(textOutput("scatter_message_center"), style = "color:#c73824; margin-top:11px")
-          ) # end column
-          
-        ) # end fluidRow
-        
-      ) # end column
-      
-    ), # end fluidRow
-    
-    
-    fluidRow(
-      
-      column(
-        6,
-        
-        tabsetPanel(
-          
-          tabPanel(
-            title = "Scatterplot",
-            br(),
-            
-            fluidRow(
-              
-              column(
-                4,
-                div(selectInput("scatter_var", "Point color:", choices = c("Sampling variable" = "sample_var", "Density" = "density", "None" = "none"),
-                                selected = "sample_var", width = "100%"),
-                    style = "font-size:95%")
-              ), # end column
-              
-              column(
-                8,
-                div(selectInput("scatter_groups", "Show groups:", choices = NULL, selected = NULL, multiple = TRUE, width = "100%"),
-                    style = "font-size:95%")
-              ), # end column
-              
-            ), # end fluidRow
-            
-            fluidRow(
-              
-              column(
-                4,
-                div(selectInput("scatter_margins", "Margins:", choices = c("Density" = "density", "Boxplot" = "boxplot", "None" = "none"),
-                                selected = "density", width = "100%"),
-                    style = "font-size:95%")
-              ), # end column
-              
-              column(
-                4,
-                div(selectInput("scatter_height", "Plot height:", choices = seq(300, 1500, 50), selected = 700, width = "100%"),
-                    style = "font-size:95%")
-              ), # end column
-              
-              column(
-                4,
-                div(selectInput("scatter_dot_size", "Point size:", choices = seq(0.1, 2, 0.1), selected = 0.5, width = "100%"),
-                    style = "font-size:95%")
-              ) # end column
-              
-            ), # end fluidRow
-            
-            fluidRow(
-              
-              column(
-                6,
-                div(selectInput("scatter_x", "Channel X:", choices = NULL, selected = NULL, width = "100%"),
-                    style = "font-size:95%;")
-              ), # end column
-              
-              column(
-                6,
-                div(selectInput("scatter_y", "Channel Y:", choices = NULL, selected = NULL, width = "100%"),
-                    style = "font-size:95%")
-              ) # end column
-              
-            ), # end fluidRow
-            
-            plotOutput("scatterplot", height = "700px")
-            
-          ) # end tabPanel
-          
-        ) # end tabsetPanel
-        
-      ), # end column
-      
-      column(
-        6,
-        
-        tabsetPanel(
-          
-          tabPanel(
-            title = "Violins",
-            br(),
-            
-            fluidRow(
-              
-              column(
-                4,
-                div(selectInput(inputId = "violins_var", "Group by:", choices = c("Sampling variable" = "sample_var", "None" = "none"),
-                                selected = "sample_var", width = "100%"),
-                    style = "font-size:95%")
-              ), # end column
-              
-              column(
-                4,
-                div(selectInput("violins_groups", "Show groups:", choices = NULL, selected = NULL, multiple = TRUE, width = "100%"),
-                    style = "font-size:95%")
-              ), # end column
-              
-              column(
-                4,
-                div(selectInput("channels_for_violins", "Channels:", choices = NULL, selected = NULL, multiple = TRUE, width = "100%"),
-                    style = "font-size:95%")
-              ) # end column
-              
-            ), # end fluidRow
-            
-            plotOutput("violins_plot", height = "800px")
-            
-          ) # end tabPanel
-          
-        ) # end tabsetPanel
-        
-      ) # end column
-      
-    ) # end fluidRow
+    plots_UI("Plots_UI_1")
     
   ), # end tabPanel
   
+  
   tabPanel(
-    title = "Data tables", #############################################################################################
+    title = "Tables",
     
     tabsetPanel(
       
       tabPanel(
         title = "Drugs",
         br(),
-        div(dataTableOutput("drugs_dt"), style = "font-size:95%")
+        div(dataTableOutput("drugs_dt"), style = "font-size:95%; overflow: auto")
       ), # end tabPanel
       
       tabPanel(
         title = "Channels",
         br(),
-        div(dataTableOutput("channels_dt"), style = "font-size:95%")
+        div(dataTableOutput("channels_table_dt"), style = "font-size:95%; overflow: auto")
       ), # end tabPanel
       
       tabPanel(
         title = "Channel MFIs",
         br(),
-        div(dataTableOutput("mfis_dt"), style = "font-size:95%")
+        div(dataTableOutput("mfis_dt"), style = "font-size:95%; overflow: auto")
       ), # end tabPanel
       
       tabPanel(
         title = "Cliques",
         br(),
-        div(dataTableOutput("cliques_dt"), style = "font-size:95%")
+        div(dataTableOutput("cliques_dt"), style = "font-size:95%; overflow: auto")
       ), # end tabPanel
       
       tabPanel(
         title = "Samples edges",
         br(),
-        div(dataTableOutput("samples_network_dt"), style = "font-size:95%")
+        div(dataTableOutput("samples_network_dt"), style = "font-size:95%; overflow: auto")
       ), # end tabPanel
       
       tabPanel(
         title = "Dispersion edges",
         br(),
-        div(dataTableOutput("disp_network_dt"), style = "font-size:95%")
+        div(dataTableOutput("disp_network_dt"), style = "font-size:95%; overflow: auto")
       ), # end tabPanel
       
       tabPanel(
         title = "Cliques UMAP",
         br(),
-        div(dataTableOutput("umap_dt"), style = "font-size:95%")
+        div(dataTableOutput("umap_dt"), style = "font-size:95%; overflow: auto")
       ), # end tabPanel
       
       tabPanel(
         title = "Cliques centroids",
         br(),
-        div(dataTableOutput("centroids_dt"), style = "font-size:95%")
+        div(dataTableOutput("centroids_dt"), style = "font-size:95%; overflow: auto")
       ) # end tabPanel
       
     ) # end tabsetPanel
@@ -924,13 +2605,11 @@ ui <- navbarPage(
 ) # end ui
 
 
-
 ########################################################################################################################
-########################################################################################################################
-### --- Shiny SERVER --- ###############################################################################################
-########################################################################################################################
+### --- main Shiny app Server --- ######################################################################################
 ########################################################################################################################
 
+### perform server processing for Workflow and Tables views and call plots_S() for server processing for Plots view
 server <- function(input, output, session) { 
   
   ### set options
@@ -938,34 +2617,8 @@ server <- function(input, output, session) {
           stringsAsFactors = FALSE
   ) # end options
   
-  ### list of reactive values
-  rvs <- reactiveValues(
-    
-    drugs = NULL, # data frame, drugs table
-    ctr_wells = NULL, # data frame, wells from community 0
-    cliques = NULL, # data frame, cliques table
-    mfis = NULL, # data frame, channel MFI values in each well
-    channels = NULL, # data frame, table of channel names and descriptions from FCS files
-    umap = NULL, # data frame, UMAP coordinates of cliques
-    centroids = NULL, # data frame, median marker expression values in cliques
-    
-    disp_network = NULL, # data frame, list of edges in the dispersion network
-    samples_network = NULL, # data frame, list of edges in the samples network
-    
-    selected_wells = NULL, # vector, well ids of wells selected from UMAP and network plots
-    
-    sampled_event_data = NULL # data frame, down-sampled event-level data for scatterplot and violins plot
-    
-  ) # end rvs
-  
-  
-  ######################################################################################################################
-  ### --- Workflow tab --- #############################################################################################
-  ######################################################################################################################
-  
-  
   ############################################################################################################
-  ### --- Render UI elements for selected steps --- ##########################################################
+  ### --- render UI elements for selected steps --- ##########################################################
   ############################################################################################################
   
   ### render UI elements for additional parameters in step 1
@@ -1139,10 +2792,13 @@ server <- function(input, output, session) {
   
   
   ############################################################################################################
-  ### --- Run workflow --- ###################################################################################
+  ### --- run COMPARE workflow --- ###########################################################################
   ############################################################################################################
   
-  ### validate and reference file paths
+  # reactive value to hold the list of data tables for visualizations
+  plots_set <- reactiveVal(NULL)
+  
+  ### validate and reference the data and output paths
   paths <- reactive({
     
     validate(need(input$out_path, message = FALSE))
@@ -1163,9 +2819,10 @@ server <- function(input, output, session) {
   }) # end paths
   
   
-  ### run selected workflow steps
+  ### run workflow steps
   observeEvent(input$run_workflow, {
     
+    # check if at least one file is selected
     if (!(TRUE %in% c(input$include_step1,
                       input$include_step2,
                       input$include_step3,
@@ -1175,13 +2832,40 @@ server <- function(input, output, session) {
                       input$include_step7,
                       input$include_step8,
                       input$include_step9))) {
-      html(id = "run_message_center",
+      html(id = "run_error_message",
            html = "Please check at least one workflow step to run",
            add = FALSE)
       return(NULL)
     } # end if
     
-    html(id = "run_message_center",
+    # check if all required columns are present in the annotation file
+    annot <- read.table(paste0(paths()$data, .Platform$file.sep, "Annotations.txt"), header = TRUE, sep = "\t")
+    if (!all(c("file","drug","plate","row","column","concentration","control") %in% colnames(annot))) {
+      
+      html(id = "run_error_message",
+           html = "Error reading annotation, please see below",
+           add = FALSE)
+      
+      html(id = "message_output",
+           html = "Please make sure that the annotation file contains the required columns and the column names are:</br>
+                   <strong>file</strong>: name of FCS file without extension</br>
+                   <strong>drug</strong>: compound name</br>
+                   <strong>plate</strong>: plate number</br>
+                   <strong>row</strong>: row coordinate, e.g, A, B, C</br>
+                   <strong>column</strong>: column coordinate, e.g, 1, 2, 3</br>
+                   <strong>concentration</strong>: compound concentration</br>
+                   <strong>control</strong>: either 0 or 1 where 0 = drug compound and 1 = negative control compound
+                   </br></br>",
+           add = TRUE)
+      
+      # scroll window
+      session$sendCustomMessage(type = "scrollCallback", 1)
+      
+      return(NULL)
+      
+    } # end else
+    
+    html(id = "run_error_message",
          html = "",
          add = FALSE)
     
@@ -1192,6 +2876,9 @@ server <- function(input, output, session) {
       validate(need(input$min_events, message = FALSE))
       
       html(id = "message_output", html = paste0(Sys.time(), " : Running Step 1 ...</br>"), add = TRUE)
+      
+      # scroll window
+      session$sendCustomMessage(type = "scrollCallback", 1)
       
       # run with call handlers to redirect messages
       withCallingHandlers({
@@ -1225,6 +2912,9 @@ server <- function(input, output, session) {
     if (input$include_step2) {
       
       html(id = "message_output", html = paste0(Sys.time(), " : Running Step 2 ...</br>"), add = TRUE)
+      
+      # scroll window
+      session$sendCustomMessage(type = "scrollCallback", 1)
       
       # run with call handlers to redirect messages
       withCallingHandlers({
@@ -1263,6 +2953,9 @@ server <- function(input, output, session) {
       validate(need(input$heatplot_step3, message = FALSE))
       
       html(id = "message_output", html = paste0(Sys.time(), " : Running Step 3 ...</br>"), add = TRUE)
+      
+      # scroll window
+      session$sendCustomMessage(type = "scrollCallback", 1)
       
       # run with call handlers to redirect messages
       withCallingHandlers({
@@ -1306,6 +2999,9 @@ server <- function(input, output, session) {
       
       html(id = "message_output", html = paste0(Sys.time(), " : Running Step 4 ...</br>"), add = TRUE)
       
+      # scroll window
+      session$sendCustomMessage(type = "scrollCallback", 1)
+      
       # run with call handlers to redirect messages
       withCallingHandlers({
         
@@ -1347,6 +3043,9 @@ server <- function(input, output, session) {
       
       html(id = "message_output", html = paste0(Sys.time(), " : Running Step 5...</br>"), add = TRUE)
       
+      # scroll window
+      session$sendCustomMessage(type = "scrollCallback", 1)
+      
       # run with call handlers to redirect messages
       withCallingHandlers({
         
@@ -1383,6 +3082,9 @@ server <- function(input, output, session) {
       
       html(id = "message_output", html = paste0(Sys.time(), " : Running Step 6 ...</br>"), add = TRUE)
       
+      # scroll window
+      session$sendCustomMessage(type = "scrollCallback", 1)
+      
       # run with call handlers to redirect messages
       withCallingHandlers({
         
@@ -1414,6 +3116,9 @@ server <- function(input, output, session) {
     if (input$include_step7) {
       
       html(id = "message_output", html = paste0(Sys.time(), " : Running Step 7 ...</br>"), add = TRUE)
+      
+      # scroll window
+      session$sendCustomMessage(type = "scrollCallback", 1)
       
       # run with call handlers to redirect messages
       withCallingHandlers({
@@ -1450,6 +3155,9 @@ server <- function(input, output, session) {
       validate(need(input$nn, message = FALSE))
       
       html(id = "message_output", html = paste0(Sys.time(), " : Running Step 8 ...</br>"), add = TRUE)
+      
+      # scroll window
+      session$sendCustomMessage(type = "scrollCallback", 1)
       
       # run with call handlers to redirect messages
       withCallingHandlers({
@@ -1488,251 +3196,46 @@ server <- function(input, output, session) {
       
       html(id = "message_output", html = paste0(Sys.time(), " : Running Step 9 ...</br>"), add = TRUE)
       
-      # check if the needed files are present
+      # scroll window
+      session$sendCustomMessage(type = "scrollCallback", 1)
+      
+      # list of files in output directory
       files <- list.files(paths()$out)
       
+      # check if the needed files are present
+      
       if (!("compare_clustering.RData" %in% files)) {
-        html(id = "run_message_center",
+        html(id = "run_error_message",
              html = "Can't find compare_clustering.RData file in output folder, please make sure that Step 8 was run",
              add = TRUE)
         return(NULL)
       } # end if
       
       if (!("drugs_table.tsv" %in% files)) {
-        html(id = "run_message_center",
+        html(id = "run_error_message",
              html = "Can't find drugs_table.tsv file in output folder, please make sure that Step 8 was run",
              add = TRUE)
         return(NULL)
       } # end if
       
       if (!("Cliques.tsv" %in% files)) {
-        html(id = "run_message_center",
+        html(id = "run_error_message",
              html = "Can't find Cliques.tsv file in output folder, please make sure that Step 8 was run",
              add = TRUE)
         return(NULL)
       } # end if
       
-      html(id = "message_output", html = paste0(Sys.time(), " : Reading COMPARE files ...</br>"), add = TRUE)
+      html(id = "message_output", html = paste0(Sys.time(), " : Reading COMPARE output and FCS files, please wait ...</br>"), add = TRUE)
       
       # scroll window
       session$sendCustomMessage(type = "scrollCallback", 1)
       
       channels <- strsplit(input$channels_step9, split = '[,]')[[1]]
       
-      # load the compaRe RData file
-      e = new.env()
-      rdata_obj <- load(paste0(paths()$out, "compare_clustering.RData"), envir = e)
-      rdata_obj <- e[[rdata_obj]]
+      ### generate data for interactive plots
+      plots_set(get_plots_set(channels, paths))
       
-      # drugs table
-      rvs$drugs <- read.table(paste0(paths()$out, "drugs_table.tsv"), header = TRUE, sep = "\t")
-      
-      rvs$drugs$control <- as.character(rvs$drugs$control)
-      rvs$drugs$community <- as.character(rvs$drugs$community)
-      
-      
-      ####### samples network
-      
-      rvs$samples_network <- as.data.frame(cbind(as_edgelist(rdata_obj$samples_graph, names = TRUE),
-                                                 as.double(E(rdata_obj$samples_graph)$weight)))
-      colnames(rvs$samples_network) <- c("from","to","weight")
-      
-      rvs$samples_network$weight <- as.double(rvs$samples_network$weight)
-      
-      html(id = "message_output", html = paste0(Sys.time(), " : Assigning edge weight colors in samples network ...</br>"), add = TRUE)
-      
-      # scroll window
-      session$sendCustomMessage(type = "scrollCallback", 1)
-      
-      # option to color edges by weight for when the network is rendered
-      col_fun <- colorRamp2(c(min(rvs$samples_network$weight), median(rvs$samples_network$weight), max(rvs$samples_network$weight)),
-                            c("#008744", "#f1f1f1", "#a200ff"))
-      rvs$samples_network$color_weight <- col_fun(rvs$samples_network$weight)
-      
-      # round similarity scores
-      rvs$drugs$sim_vs_control <- round(rvs$drugs$sim_vs_control, 3)
-      rvs$drugs$sim_vs_all <- round(rvs$drugs$sim_vs_all, 3)
-      
-      # calculate node degrees in samples network
-      rvs$drugs$degree_samples <- NA
-      for (i in 1:nrow(rvs$drugs)) {
-        rvs$drugs[i,]$degree_samples <- length(which(rvs$samples_network$from == rvs$drugs[i,]$file)) + length(which(rvs$samples_network$to == rvs$drugs[i,]$file))
-      } # end for
-      
-      
-      ####### dispersion network
-      
-      rvs$disp_network <- as.data.frame(cbind(as_edgelist(rdata_obj$dispersion_graph, names = TRUE),
-                                              as.double(E(rdata_obj$dispersion_graph)$weight)))
-      colnames(rvs$disp_network) <- c("from","to","weight")
-      
-      rvs$disp_network$weight <- as.double(rvs$disp_network$weight)
-      
-      # calculate node degrees in samples network
-      rvs$drugs$degree_disp <- NA
-      for (i in 1:nrow(rvs$drugs)) {
-        rvs$drugs[i,]$degree_disp <- length(which(rvs$disp_network$from == rvs$drugs[i,]$file)) + length(which(rvs$disp_network$to == rvs$drugs[i,]$file))
-      } # end for
-      
-      html(id = "message_output", html = paste0(Sys.time(), " : Assigning edge weight colors in dispersion network ...</br>"), add = TRUE)
-      
-      # scroll window
-      session$sendCustomMessage(type = "scrollCallback", 1)
-      
-      # option to color edges by weight for when the network is rendered
-      col_fun <- colorRamp2(c(min(rvs$disp_network$weight), median(rvs$disp_network$weight), max(rvs$disp_network$weight)),
-                            c("#008744", "#f1f1f1", "#a200ff"))
-      rvs$disp_network$color_weight <- col_fun(rvs$disp_network$weight)
-      
-      
-      ### read the FCS files and get the number of cells, MFI values, and channels table
-      
-      mfis <- matrix(data = NA, nrow = nrow(rvs$drugs), ncol = length(channels) + 1)
-      colnames(mfis) <- c("well", channels)
-      mfis[,"well"] <- rvs$drugs$file
-      
-      for (i in 1:nrow(rvs$drugs)) {
-        
-        well <- rvs$drugs[i,]$file
-        fname <- paste0(well, ".fcs")
-        
-        if (fname %in% list.files(paths()$data, pattern = "fcs")) {
-          
-          html(id = "message_output", html = paste0(Sys.time(), " : Processing ", fname, " - file ", i, " of ", nrow(rvs$drugs), "</br>"), add = TRUE)
-            
-          # scroll window
-          session$sendCustomMessage(type = "scrollCallback", 1)
-          
-          # read FCS file
-          ff <- read.FCS(paste0(paths()$data, fname), transformation = FALSE)
-          
-          # channels table
-          channels_table <- ff@parameters@data[,c("name","desc")]
-          
-          # get MFI values for provided channel names
-          expr_data <- ff@exprs[,channels, drop = FALSE]
-          
-          for (channel in channels) {
-            
-            dt_tmp <- expr_data[,channel]
-            
-            ### Morteza's code to calculate MFI
-            dt_tmp = dt_tmp[which(0 <= dt_tmp)]                         # N.B.: which igonores NA and NaNs. Non-positives are always non-positives even in presence of drift
-            IQR_ = IQR(dt_tmp)                                          # inter-quantile region
-            quartiles_ = quantile(dt_tmp, probs = c(.25, .75))          # 25th and 75th percentiles
-            lowWhisker_ = max(min(dt_tmp), quartiles_[1] - IQR_*1.5)    # lower whisker
-            upWhisker_ = min(max(dt_tmp), quartiles_[2] + IQR_*1.5)
-            mfis[which(mfis[,"well"] == well), channel] = round(median(dt_tmp[lowWhisker_ < dt_tmp & dt_tmp < upWhisker_]), 3)
-            
-          } # end for
-          
-        } else {
-          
-          html(id = "message_output", html = paste0(Sys.time(), " : Can't find FCS file for ", well), add = TRUE)
-          
-          # scroll window
-          session$sendCustomMessage(type = "scrollCallback", 1)
-          
-          return(NULL)
-          
-        } # end else
-        
-      } # end for
-      
-      rvs$mfis <- as.data.frame(mfis)
-      rvs$channels <- as.data.frame(channels_table)
-      
-      rownames(rvs$channels) <- rvs$channels$name
-      colnames(rvs$mfis) <- c("well", rvs$channels[channels,]$desc)
-      
-      for (desc in rvs$channels[channels,]$desc) {
-        rvs$mfis[,desc] <- as.double(rvs$mfis[,desc])
-      } # end for
-      
-      
-      ####### cliques UMAP and centroids
-      
-      rvs$umap <- rdata_obj$umap_
-      rvs$centroids <- read.table(paste0(paths()$out, "Centroids.tsv"), sep = "\t", header = TRUE, row.names = 1)
-      
-      colnames(rvs$centroids) <- rvs$channels[channels,]$desc
-      
-      
-      ####### cliques table
-      
-      cliques <- read.table(paste0(paths()$out, "Cliques.tsv"), sep = "\t", header = TRUE)
-      
-      cliques$ID <- paste0("C", cliques$ID) # to match cliques ID in umap and centroids tables
-      cliques$length <- NA # number of wells in clique
-      cliques$total_live_cells <- NA # total events in clique
-      
-      for (i in 1:nrow(cliques)) {
-        cliques[i,]$length <- length(strsplit(cliques[i,]$File, split = ",")[[1]])
-        cliques[i,]$total_live_cells <- sum(as.numeric(strsplit(cliques[i,]$live_cels, split = ",")[[1]]))
-        
-      } # end for 
-      
-      rvs$drugs$clique_ids <- NA
-      
-      for (i in 1:nrow(rvs$drugs)) {
-        
-        for (c in 1:nrow(cliques)) {
-          
-          if (rvs$drugs$file[i] %in% strsplit(cliques[c,]$File, split = ",")[[1]]) {
-            
-            if (is.na(rvs$drugs[i,]$clique_ids))
-              rvs$drugs[i,]$clique_ids <- cliques[c,]$ID
-            else
-              rvs$drugs[i,]$clique_ids <- paste(c(rvs$drugs[i,]$clique_ids, cliques[c,]$ID), collapse = ",")
-            
-          } # end if
-          
-        } # end for
-        
-        
-      } # end for
-      
-      rvs$cliques <- cliques
-      rvs$ctr_wells <- rvs$drugs[which(rvs$drugs$community == "0"),]
-      
-      ####### update ui controls
-      
-      updateSelectInput(session, "umap_x", choices = colnames(rvs$umap))
-      updateSelectInput(session, "umap_y", choices = colnames(rvs$umap), selected = colnames(rvs$umap)[2])
-      updateSelectInput(session, "umap_channel", choices = as.character(rvs$channels[channels,]$desc))
-      
-      updateSelectInput(session, "samples_node_color_channel", choices = as.character(rvs$channels[channels,]$desc))
-      updateSelectInput(session, "disp_node_color_channel", choices = as.character(rvs$channels[channels,]$desc))
-      
-      min_degree <- min(rvs$drugs$degree_samples)
-      max_degree <- max(rvs$drugs$degree_samples)
-      
-      updateSliderInput(session, "node_degree_range", min = min(rvs$drugs$degree_samples), max = max(rvs$drugs$degree_samples),
-                        value = c(min(rvs$drugs$degree_samples), max(rvs$drugs$degree_samples)))
-      
-      min_weight <- round(min(rvs$samples_network$weight), 1) - 1
-      max_weight <- round(max(rvs$samples_network$weight), 1) + 1
-      
-      updateSliderInput(session, "edge_weight_range", min = min_weight, max = max_weight, value = c(min_weight, max_weight))
-      
-      min_score <- round(min(rvs$drugs$sim_vs_control), 1) - 1
-      max_score <- round(max(rvs$drugs$sim_vs_control), 1) + 2
-      
-      updateSliderInput(session, "sim_vs_ctr_range", min = min_score, max = max_score, value = c(min_score, max_score))
-      
-      min_score <- round(min(rvs$drugs$sim_vs_all), 1) - 1
-      max_score <- round(max(rvs$drugs$sim_vs_all), 1) + 1
-      
-      updateSliderInput(session, "sim_vs_all_range", min = min_score, max = max_score, value = c(min_score, max_score))
-      
-      names(channels) <- rvs$channels[channels,]$desc
-      
-      updateSelectInput(session, "scatter_x", choices = channels)
-      updateSelectInput(session, "scatter_y", choices = channels, selected = channels[2])
-      updateSelectInput(session, "channels_for_violins", choices = channels, selected = channels)
-      
-      
-      html(id = "message_output", html = paste0(Sys.time(), " : Step 9 done! Proceed to Plots tab.</br>"), add = TRUE)
+      html(id = "message_output", html = paste0(Sys.time(), " : Step 9 done! Proceed to Plots tab</br>"), add = TRUE)
       session$sendCustomMessage(type = "scrollCallback", 1)
       
     } # end if
@@ -1740,31 +3243,39 @@ server <- function(input, output, session) {
   }) # end observeEvent
   
   
+  ######################################################################################################################
+  ### --- Plots view --- ###############################################################################################
+  ######################################################################################################################
+  
+  plots_S("Plots_UI_1", plots_set, paths)
+  
+  
   
   ######################################################################################################################
-  ### --- Data tables tab --- ##########################################################################################
+  ### --- Tables view --- ##############################################################################################
   ######################################################################################################################
   
   ### render the drugs table
   output$drugs_dt <- renderDT(
-    rvs$drugs[,c("file","drug","concentration","live_cells","control","community","sim_vs_control","sim_vs_all","clique_ids")],
+    plots_set()$drugs[,c("file","drug","concentration","live_cells","control","community","sim_vs_control","sim_vs_all","clique_ids")],
     filter = "top",
     selection = "none",
     rownames = FALSE,
     options = list(pageLength = 25, lengthMenu = c(10, 25, 50, 100, 500, 1000), searchHighlight = TRUE)
   ) # end output$drugs_dt
   
+  
   ### render the channels table
-  output$channels_dt <- renderDT(
-    rvs$channels,
+  output$channels_table_dt <- renderDT(
+    plots_set()$channels_table,
     selection = "none",
-    rownames = TRUE,
+    rownames = FALSE,
     options = list(pageLength = 25, lengthMenu = c(10, 25, 50, 100, 500, 1000), searchHighlight = TRUE)
-  ) # end output$channels_dt
+  ) # end output$channels_table_dt
   
   ### render the channel MFIs table
   output$mfis_dt <- renderDT(
-    rvs$mfis,
+    plots_set()$mfis,
     selection = "none",
     rownames = FALSE,
     options = list(pageLength = 25, lengthMenu = c(10, 25, 50, 100, 500, 1000), searchHighlight = TRUE)
@@ -1772,7 +3283,7 @@ server <- function(input, output, session) {
   
   ### render the cliques table
   output$cliques_dt <- renderDT(
-    rvs$cliques,
+    plots_set()$cliques,
     filter = "top",
     selection = "none",
     rownames = FALSE,
@@ -1781,7 +3292,7 @@ server <- function(input, output, session) {
   
   ### render the samples network table
   output$samples_network_dt <- renderDT(
-    rvs$samples_network,
+    plots_set()$samples_network[,c("from","to","weight")],
     filter = "top",
     selection = "none",
     rownames = FALSE,
@@ -1790,7 +3301,7 @@ server <- function(input, output, session) {
   
   ### render the samples network table
   output$disp_network_dt <- renderDT(
-    rvs$disp_network,
+    plots_set()$disp_network[,c("from","to","weight")],
     filter = "top",
     selection = "none",
     rownames = FALSE,
@@ -1799,1125 +3310,17 @@ server <- function(input, output, session) {
   
   ### render the cliques UMAP table
   output$umap_dt <- renderDT(
-    rvs$umap,
+    plots_set()$umap,
     selection = "none",
     options = list(pageLength = 25, lengthMenu = c(10, 25, 50, 100, 500, 1000), searchHighlight = TRUE)
   ) # end output$umap_dt
   
   ### render the cliques centroids table
   output$centroids_dt <- renderDT(
-    rvs$centroids,
+    plots_set()$centroids,
     selection = "none",
     options = list(pageLength = 25, lengthMenu = c(10, 25, 50, 100, 500, 1000), searchHighlight = TRUE)
   ) # end output$umap_dt
-  
-  
-  
-  ######################################################################################################################
-  ### --- Plots tab --- ###############################################################################################
-  ######################################################################################################################
-  
-  
-  ### render the drugs table
-  output$ctr_wells_dt <- renderDT(
-    rvs$ctr_wells[,c("file","drug","concentration","control","live_cells")],
-    filter = "top",
-    rownames = FALSE,
-    options = list(pageLength = 500, lengthMenu = c(10,25,50,100,500,1000), searchHighlight = TRUE)
-  ) # end output$ctr_wells_dt
-  
-  
-  ### select or deselect rows in the control wells table
-  ctr_wells_dt_proxy <- dataTableProxy("ctr_wells_dt")
-  
-  observeEvent(input$ctr_wells_select_all_rows, {
-    selectRows(ctr_wells_dt_proxy, c(input$ctr_wells_dt_rows_all, input$ctr_wells_dt_rows_selected))
-  }) # end observeEvent
-  
-  observeEvent(input$ctr_wells_clear_selected_rows, {
-    selectRows(ctr_wells_dt_proxy, NULL)
-  }) # end observeEvent
-  
-  
-  ############################################################################################################
-  ### --- make and render the UMAP scatterplot --- ###########################################################
-  ############################################################################################################
-  
-  html(id = "umap_plot_hover_name",
-       html = paste("<strong>Clique:</strong>"),
-       add = FALSE)
-  html(id = "umap_plot_hover_centr",
-       html = paste("<strong>MFI:</strong>"),
-       add = FALSE)
-  html(id = "umap_plot_hover_wells",
-       html = paste("<strong>Wells:</strong>"),
-       add = FALSE)
-  html(id = "umap_plot_hover_drugs",
-       html = paste("<strong>Drugs:</strong>"),
-       add = FALSE)
-  
-  ### data for the umap scatterplot
-  umap_plot_data <- reactive({
-    
-    validate(need(rvs$umap, message = FALSE))
-    validate(need(rvs$centroids, message = FALSE))
-    validate(need(rvs$cliques, message = FALSE))
-    validate(need(input$umap_x, message = FALSE))
-    validate(need(input$umap_y, message = FALSE))
-    validate(need(input$umap_channel, message = FALSE))
-    
-    d <- data.frame(
-      x = rvs$umap[,input$umap_x],
-      y = rvs$umap[,input$umap_y],
-      centr = rvs$centroids[,input$umap_channel],
-      name = rownames(rvs$umap),
-      wells = c("", rvs$cliques$File),
-      drugs = c("", rvs$cliques$Clique),
-      comm = c("Control", rvs$cliques$Community)
-    ) # end data.frame
-    
-    if (input$umap_dot_size == "total_live_cells") {
-      d$size <- c(max(rvs$cliques$total_live_cells), rvs$cliques$total_live_cells)
-      size_title <- "Total number of events"
-    } else if (input$umap_dot_size == "length") {
-      d$size <- c(max(rvs$cliques$length), rvs$cliques$length)
-      size_title <- "Number of wells"
-    } else {
-      size_title <- "None"
-    } # end else
-    
-    #write.table(d, "umap_plot_data.txt", sep = "\t", quote = FALSE)
-    
-    return(list(d = d, x_lab = input$umap_x, y_lab = input$umap_y, channel = input$umap_channel, size_title = size_title))
-    
-  }) # end umap_plot_data
-  
-  
-  ### render umap scatterplot
-  output$umap_plot <- renderPlot({
-    
-    validate(need(umap_plot_data(), message = FALSE))
-    
-    d <- umap_plot_data()$d
-    
-    border_strokes <- rep(0, nrow(d))
-    border_strokes[which(d$name == "Control")] <- 2
-    
-    border_cols <- rep("#ffffff", nrow(d))
-    border_cols[which(d$name == "Control")] <- "#008000"
-    
-    node_shapes <- rep(21, nrow(d))
-    node_shapes[which(d$name == "Control")] <- 23
-    
-    if (input$umap_dot_size == "total_live_cells") {
-      
-      max_size <- max(d$size)
-      size_limits <- c(0, max_size)
-      size_breaks = seq(0, max_size, max_size / 10)
-      size_labels <- c(0, round(seq(max_size / 10, max_size, max_size / 10), 0))
-      
-      p <- ggplot(d, aes(x = x, y = y)) +
-        geom_point(aes(fill = centr, size = size), shape = node_shapes, alpha = 0.8, color = border_cols, stroke = border_strokes) +
-        scale_size(breaks = size_breaks, range = c(1,11), labels = size_labels) +
-        expand_limits(size = size_limits) +
-        labs(x = umap_plot_data()$x_lab, y = umap_plot_data()$y_lab) +
-        guides(fill = guide_colorbar(order = 1, title = umap_plot_data()$channel, label.theme = element_text(size = 16, angle = 45, hjust = 1)),
-               size = guide_legend(order = 2, title = umap_plot_data()$size_title, label.theme = element_text(size = 16))) +
-        theme_light() +
-        theme(legend.direction = "horizontal", legend.position = c("bottom"), legend.justification = c(-0.03,0),
-              legend.title = element_text(size = 20), axis.text = element_text(size = 18), axis.title = element_text(size = 20)) +
-        scale_fill_gradientn(colours = c("#0571B0","#92C5DE","yellow","#F4A582","#CA0020"),
-                             limits = c(min(d$centr), max(d$centr)),
-                             breaks = round(seq(min(d$centr) + 0.01, max(d$centr) - 0.01, length.out = 3), 2))
-      
-    } else if (input$umap_dot_size == "length") {
-      
-      max_size <- max(d$size)
-      size_limits <- c(0, max_size)
-      size_breaks = seq(0, max_size, max_size / 5)
-      size_labels <- c(0, round(seq(max_size / 5, max_size, max_size / 5), 1))
-      
-      p <- ggplot(d, aes(x = x, y = y)) +
-        geom_point(aes(fill = centr, size = size), shape = node_shapes, alpha = 0.8, color = border_cols, stroke = border_strokes) +
-        scale_size(breaks = size_breaks, range = c(1,11), labels = size_labels) +
-        expand_limits(size = size_limits) +
-        labs(x = umap_plot_data()$x_lab, y = umap_plot_data()$y_lab) +
-        guides(fill = guide_colorbar(order = 1, title = umap_plot_data()$channel, label.theme = element_text(size = 16, angle = 45, hjust = 1)),
-               size = guide_legend(order = 2, title = umap_plot_data()$size_title, label.theme = element_text(size = 16))) +
-        theme_light() +
-        theme(legend.direction = "horizontal", legend.position = c("bottom"), legend.justification = c(-0.03,0),
-              legend.title = element_text(size = 20), axis.text = element_text(size = 18), axis.title = element_text(size = 20)) +
-        scale_fill_gradientn(colours = c("#0571B0","#92C5DE","yellow","#F4A582","#CA0020"),
-                             limits = c(min(d$centr), max(d$centr)),
-                             breaks = round(seq(min(d$centr) + 0.01, max(d$centr) - 0.01, length.out = 3), 2))
-      
-    } else {
-      
-      p <- ggplot(d, aes(x = x, y = y)) +
-        geom_point(aes(fill = centr), size = 10, shape = node_shapes, alpha = 0.8, color = border_cols, stroke = border_strokes) +
-        labs(x = umap_plot_data()$x_lab, y = umap_plot_data()$y_lab) +
-        guides(fill = guide_colorbar(order = 1, title = umap_plot_data()$channel, label.theme = element_text(size = 16, angle = 45, hjust = 1))) +
-        theme_light() +
-        theme(legend.direction = "horizontal", legend.position = c("bottom"), legend.justification = c(-0.03,0),
-              legend.title = element_text(size = 20), axis.text = element_text(size = 18), axis.title = element_text(size = 20)) +
-        scale_fill_gradientn(colours = c("#0571B0","#92C5DE","yellow","#F4A582","#CA0020"),
-                             limits = c(min(d$centr), max(d$centr)),
-                             breaks = round(seq(min(d$centr) + 0.01, max(d$centr) - 0.01, length.out = 3), 2))
-       
-    } # end else
-    
-    if (input$umap_labels == "Clique ID") {
-      
-      p <- p + geom_text_repel(box.padding = unit(0.3, "lines"), label = d$name,
-                               size = 5.5, show.legend = FALSE, fontface = 1)
-      
-    } else if (input$umap_labels == "Community") {
-      
-      color_palette <- GetColors(length(unique(d$comm)), scheme = "jet")
-      
-      p <- p + geom_text_repel(box.padding = unit(0.6, "lines"), label = d$comm,
-                               size = 7, show.legend = FALSE, fontface = 2, color = color_palette[as.factor(d$comm)])
-      
-    } # end else if
-    
-    p
-    
-  }) # end output$umap_plot
-  
-  
-  ### observer to display data on hover point from line plot
-  observeEvent(input$umap_plot_hover, {
-    
-    d <- umap_plot_data()$d
-    
-    validate(need(d, message = FALSE))
-    
-    hover <- input$umap_plot_hover
-    point <- nearPoints(d, hover, threshold = 10, maxpoints = 1, xvar = "x", yvar = "y")
-    
-    if (nrow(point) > 0) {
-      html(id = "umap_plot_hover_name",
-           html = paste("<strong>Clique:</strong>", point$name),
-           add = FALSE)
-      html(id = "umap_plot_hover_centr",
-           html = paste("<strong>MFI:</strong>", round(point$centr, 3)),
-           add = FALSE)
-      html(id = "umap_plot_hover_wells",
-           html = paste("<strong>Wells:</strong>", point$wells),
-           add = FALSE)
-      html(id = "umap_plot_hover_drugs",
-           html = paste("<strong>Drugs:</strong>", point$drugs),
-           add = FALSE)
-    } else {
-      html(id = "umap_plot_hover_name",
-           html = paste("<strong>Clique:</strong>"),
-           add = FALSE)
-      html(id = "umap_plot_hover_centr",
-           html = paste("<strong>MFI:</strong>"),
-           add = FALSE)
-      html(id = "umap_plot_hover_wells",
-           html = paste("<strong>Wells:</strong>"),
-           add = FALSE)
-      html(id = "umap_plot_hover_drugs",
-           html = paste("<strong>Drugs:</strong>"),
-           add = FALSE)
-    } # end else
-    
-  }) # end observeEvent
-  
-  
-  ### observer to record clicked wells in plate heatmaps
-  observeEvent(input$umap_plot_click, {
-    
-    d <- umap_plot_data()$d
-    
-    validate(need(d, message = FALSE))
-    
-    click <- input$umap_plot_click
-    point <- nearPoints(d, click, threshold = 10, maxpoints = 1, xvar = "x", yvar = "y")
-    
-    if (nrow(point) > 0) {
-      wells <- strsplit(point$wells, split = ",")[[1]]
-      rvs$selected_wells <- union(rvs$selected_wells, wells)
-    } # end if
-    
-  }) # end observeEvent
-  
-  
-  ### subset of annotation with wells clicked in line plot and plate heatmaps
-  scatter_wells <- reactive({
-    if (is.null(rvs$selected_wells))
-      return(NULL)
-    else {
-      rows_to_select <- which(rvs$drugs$file %in% rvs$selected_wells & !(rvs$drugs$file %in% rvs$ctr_wells$file))
-      validate(need(rows_to_select, message = FALSE))
-      return(rvs$drugs[rows_to_select,])
-    } # end else
-  }) # end scatter_wells
-  
-  
-  ### observer to render the datatable with wells selected from line plot and plate heatmaps
-  observe({
-    
-    if (is.null(scatter_wells())) {
-      output$scatter_wells_dt <- renderDT(NULL)
-    } else {
-      output$scatter_wells_dt <- renderDT(
-        scatter_wells()[,c("file","drug","concentration","community","clique_ids","live_cells")],
-        rownames = FALSE,
-        options = list(pageLength = 500, lengthMenu = c(10,25,50,100,500,1000), searchHighlight = TRUE)
-      ) # end output$scatter_wells_dt
-    } # end else
-    
-  }) # end observe
-  
-  
-  ### select or deselect rows in the control wells table
-  scatter_wells_dt_proxy <- dataTableProxy("scatter_wells_dt")
-  
-  observeEvent(input$scatter_wells_select_all_rows, {
-    selectRows(scatter_wells_dt_proxy, c(input$scatter_wells_dt_rows_all, input$scatter_wells_dt_rows_selected))
-  }) # end observeEvent
-  
-  observeEvent(input$scatter_wells_clear_selected_rows, {
-    selectRows(scatter_wells_dt_proxy, NULL)
-  }) # end observeEvent
-  
-  ### clear selected wells
-  observeEvent(input$scatter_wells_clear_table, {
-    
-    isolate(visNetworkProxy("disp_network") %>% visGetSelectedNodes())
-    isolate(visNetworkProxy("samples_network") %>% visGetSelectedNodes())
-    
-    rvs$selected_wells <- NULL
-  }) # end observeEvent
-  
-  
-  ############################################################################################################
-  ### --- make and render the dispersion network --- #########################################################
-  ############################################################################################################
-  
-  ### samples graph igraph object
-  disp_igraph <- reactive({
-    
-    validate(need(rvs$drugs, message = FALSE))
-    
-    nodes <- data.frame(
-      id = rvs$drugs$file,
-      color.border = "#999999",
-      borderWidth = 1,
-      color.highlight.border = "#d62d20",
-      degree = rvs$drugs$degree_disp,
-      value = rvs$drugs$live_cells,
-      drug = rvs$drugs$drug,
-      drug_label = paste(rvs$drugs$drug, rvs$drugs$concentration, sep = "_"),
-      community = rvs$drugs$community,
-      sim_vs_ctr = rvs$drugs$sim_vs_control,
-      sim_vs_all = rvs$drugs$sim_vs_all
-    ) # end data.frame 
-    
-    # assign node color based on selected metric
-    if (input$disp_node_color_metric == "none") {
-      
-      nodes$color.background <- "#f1f1f1"
-      nodes$color.highlight.background <- "#f1f1f1"
-      
-    } else {
-      
-      if (input$disp_node_color_metric == "degree")
-        col_values <- rvs$drugs$degree_disp
-      else if (input$disp_node_color_metric == "cells")
-        col_values <- rvs$drugs$live_cells
-      else if (input$disp_node_color_metric == "mfi")
-        col_values <- rvs$mfis[,input$disp_node_color_channel]
-      else if (input$disp_node_color_metric == "sim_vs_ctr")
-        col_values <- rvs$drugs$sim_vs_control
-      else if (input$disp_node_color_metric == "sim_vs_all")
-        col_values <- rvs$drugs$sim_vs_all
-      
-      col_fun <- colorRamp2(c(min(col_values), median(col_values), max(col_values)),
-                            c("#0057e7", "#fdf498", "#d62d20"))
-      nodes$color.background <- col_fun(col_values)
-      nodes$color.highlight.background <- col_fun(col_values)
-      
-    } # end else
-    
-    # add control node
-    nodes <- rbind(nodes, data.frame(id = "Control",
-                                     color.border = "#999999",
-                                     borderWidth = 1,
-                                     color.highlight.border = "#d62d20",
-                                     degree = length(which(rvs$disp_network$from == "Control")) + length(which(rvs$disp_network$to == "Control")),
-                                     value = mean(rvs$drugs[which(rvs$drugs$degree_disp == 0),]$live_cells),
-                                     drug = "Control",
-                                     drug_label = "Control",
-                                     community = 0,
-                                     sim_vs_ctr = NA,
-                                     sim_vs_all = NA,
-                                     color.background = "#f1f1f1",
-                                     color.highlight.background = "#f1f1f1"))
-    
-    # assign node color to the control node based on selected metric
-    if (!(input$disp_node_color_metric == "none")) {
-      
-      if (input$disp_node_color_metric == "degree") {
-        
-        ctr_value <- nodes[which(nodes$id == "Control"),]$degree
-        col_values <- c(rvs$drugs$degree_disp, ctr_value)
-        
-      } else if (input$disp_node_color_metric == "cells") {
-        
-        ctr_value <- nodes[which(nodes$id == "Control"),]$value
-        col_values <- c(rvs$drugs$live_cells, ctr_value)
-        
-      } else if (input$disp_node_color_metric == "mfi") {
-        
-        ctr_value <- median(rvs$mfis[which(rvs$drugs$degree_disp == 0),input$disp_node_color_channel])
-        col_values <- c(rvs$mfis[,input$disp_node_color_channel], ctr_value)
-        
-      } else if (input$disp_node_color_metric == "sim_vs_ctr") {
-        
-        ctr_value <- mean(rvs$drugs[which(rvs$drugs$degree_disp == 0),]$sim_vs_control)
-        col_values <- c(rvs$drugs$sim_vs_control, ctr_value)
-        
-      } else if (input$disp_node_color_metric == "sim_vs_all") {
-        
-        ctr_value <- mean(rvs$drugs[which(rvs$drugs$degree_disp == 0),]$sim_vs_all)
-        col_values <- c(rvs$drugs$sim_vs_all, ctr_value)
-        
-      } # end esle if
-      
-      col_fun <- colorRamp2(c(min(col_values), median(col_values), max(col_values)),
-                            c("#0057e7", "#fdf498", "#d62d20"))
-      nodes[which(nodes$id == "Control"),]$color.background <- col_fun(ctr_value)
-      nodes[which(nodes$id == "Control"),]$color.highlight.background <- col_fun(ctr_value)
-      
-    } # end if
-    
-    
-    # assign node label based on user input
-    if (input$disp_node_label == "well")
-      nodes$label <- nodes$id
-    else if (input$disp_node_label == "drug")
-      nodes$label <- nodes$drug_label
-    else if (input$disp_node_label == "comm")
-      nodes$label <- nodes$community
-    
-    # make edges data frame
-    edges <- data.frame(
-      from = rvs$disp_network$from,
-      to = rvs$disp_network$to,
-      weight = rvs$disp_network$weight
-    ) # end data.frame
-    
-    # assign edge colors
-    if (input$disp_edge_color_metric == "weight") {
-      edges$color <- rvs$disp_network$color_weight
-    } else {
-      edges$color <- "#cbcbcb"
-    } # end esle
-    
-    # filter nodes to only those that are in the edge list
-    nodes <- nodes[which(nodes$id %in% unique(c(edges$from, edges$to))),]
-    
-    # make igraph object
-    g <- graph_from_data_frame(edges, directed = FALSE, vertices = nodes)
-    
-    # update the node id input box
-    updateSelectInput(session, "disp_select_by_id", choices = V(g)$name[order(V(g)$name)])
-    updateSelectInput(session, "disp_select_by_drug", choices = V(g)$drug[order(V(g)$drug)])
-    updateSelectInput(session, "disp_select_by_comm", choices = V(g)$community[order(V(g)$community)])
-    
-    return(g)
-    
-  }) # end disp_igraph
-  
-  
-  ### render the dispersion network
-  output$disp_network <- renderVisNetwork({
-    
-    g <- disp_igraph()
-    
-    if (is.null(g))
-      return(NULL)
-    
-    # render the network from igraph object
-    if (input$disp_network_layout == "layout_with_fr") {
-      
-      visIgraph(g, idToLabel = FALSE, layout = "layout_with_fr", randomSeed = 211) %>%
-        visOptions(highlightNearest = input$disp_highlight_nearest, autoResize = TRUE) %>%
-        visInteraction(multiselect = TRUE)
-      
-    } else if (input$disp_network_layout == "hierarchical") {
-      
-      visIgraph(g, idToLabel = FALSE) %>%
-        visHierarchicalLayout(direction = "UD", levelSeparation = 130, nodeSpacing = 120, sortMethod = "hubsize") %>%
-        visOptions(highlightNearest = input$disp_highlight_nearest, autoResize = TRUE, ) %>%
-        visInteraction(multiselect = TRUE)
-      
-    } # end else if
-    
-  }) # end output$disp_network
-  
-  
-  ### observer to add selected nodes form the dispersion network into the scatter well table
-  observe({
-    
-    input$disp_network_add_selected
-    
-    visNetworkProxy("disp_network") %>% visGetSelectedNodes()
-    
-    validate(need(input$disp_network_selectedNodes, message = FALSE))
-    
-    rvs$selected_wells <- union(isolate(rvs$selected_wells), setdiff(input$disp_network_selectedNodes, "Control"))
-    
-  }) # end observe
-  
-  
-  ############################################################################################################
-  ### --- observers to select nodes in the dispersion network --- ############################################
-  ############################################################################################################
-  
-  ### observer to select nodes by id
-  observeEvent(input$disp_select_by_id, ignoreNULL = FALSE, {
-    
-    if (is.null(input$disp_select_by_id))
-      visNetworkProxy("disp_network") %>% visUnselectAll()
-    else
-      visNetworkProxy("disp_network") %>% visSelectNodes(id = input$disp_select_by_id)
-    
-  }) # end observeEvent
-  
-  
-  ### observer to select nodes by drug
-  observeEvent(input$disp_select_by_drug, ignoreNULL = FALSE, {
-    
-    if (is.null(input$disp_select_by_drug))
-      visNetworkProxy("disp_network") %>% visUnselectAll()
-    else {
-      g <- disp_igraph()
-      visNetworkProxy("disp_network") %>%
-        visSelectNodes(id = V(g)$name[which(V(g)$drug %in% input$disp_select_by_drug)])
-    } # end else
-    
-  }) # end observeEvent
-  
-  
-  ### observer to select nodes by community
-  observeEvent(input$disp_select_by_comm, ignoreNULL = FALSE, {
-    
-    if (is.null(input$disp_select_by_comm))
-      visNetworkProxy("disp_network") %>% visUnselectAll()
-    else {
-      g <- disp_igraph()
-      visNetworkProxy("disp_network") %>%
-        visSelectNodes(id = V(g)$name[which(V(g)$community %in% input$disp_select_by_comm)]) 
-    } # end else
-    
-  }) # end observeEvent
-  
-  
-  ############################################################################################################
-  ### --- make and render the samples network --- ############################################################
-  ############################################################################################################
-  
-  ### samples graph igraph object
-  samples_igraph <- reactive({
-    
-    validate(need(rvs$drugs, message = FALSE))
-    
-    nodes <- data.frame(
-      id = rvs$drugs$file,
-      color.border = "#999999",
-      borderWidth = 1,
-      color.highlight.border = "#d62d20",
-      value = rvs$drugs$live_cells,
-      degree = rvs$drugs$degree_samples,
-      sim_vs_ctr = rvs$drugs$sim_vs_control,
-      sim_vs_all = rvs$drugs$sim_vs_all,
-      community = rvs$drugs$community,
-      control = rvs$drugs$control,
-      drug = rvs$drugs$drug,
-      clique_ids = rvs$drugs$clique_ids
-    ) # end data.frame 
-    
-    # highlight control nodes
-    nodes[which(nodes$control == 1),]$color.border <- "#008744"
-    nodes[which(nodes$control == 1),]$borderWidth <- 1.5
-    
-    # assign node color based on selected metric
-    if (input$samples_node_color_metric == "none") {
-      
-      nodes$color.background <- "#f1f1f1"
-      nodes$color.highlight.background <- "#f1f1f1"
-      
-    } else {
-      
-      if (input$samples_node_color_metric == "degree")
-        col_values <- rvs$drugs$degree_samples
-      else if (input$samples_node_color_metric == "cells")
-        col_values <- rvs$drugs$live_cells
-      else if (input$samples_node_color_metric == "mfi")
-        col_values <- rvs$mfis[,input$samples_node_color_channel]
-      else if (input$samples_node_color_metric == "sim_vs_ctr")
-        col_values <- rvs$drugs$sim_vs_control
-      else if (input$samples_node_color_metric == "sim_vs_all")
-        col_values <- rvs$drugs$sim_vs_all
-      
-      col_fun <- colorRamp2(c(min(col_values), median(col_values), max(col_values)),
-                            c("#0057e7", "#fdf498", "#d62d20"))
-      nodes$color.background <- col_fun(col_values)
-      nodes$color.highlight.background <- col_fun(col_values)
-      
-    } # end else
-    
-    # assign node label based on user input
-    if (input$samples_node_label == "well") {
-      nodes$label <- rvs$drugs$file
-    } else if (input$samples_node_label == "drug") {
-      
-      if ("concentration" %in% colnames(rvs$drugs))
-        nodes$label <- paste(rvs$drugs$drug, rvs$drugs$concentration, sep = "_")
-      else
-        nodes$label <- rvs$drugs$drug
-      
-    } else if (input$samples_node_label == "comm") {
-      nodes$label <- rvs$drugs$community
-    } # end esle if
-    
-    # make edges data frame
-    edges <- data.frame(
-      from = rvs$samples_network$from,
-      to = rvs$samples_network$to,
-      weight = rvs$samples_network$weight
-    ) # end data.frame
-    
-    # assign edge colors
-    if (input$samples_edge_color_metric == "weight") {
-      edges$color <- rvs$samples_network$color_weight
-    } else {
-      edges$color <- "#cbcbcb"
-    } # end esle
-    
-    # make igraph object
-    g <- graph_from_data_frame(edges, directed = FALSE, vertices = nodes)
-    
-    return(g)
-    
-  }) # end samples_igraph
-  
-  
-  filtered_samples_igraph <- reactive({
-    
-    g <- samples_igraph()
-    
-    validate(need(g, message = FALSE))
-    
-    g <- delete_vertices(g, v = which(V(g)$degree < input$node_degree_range[1]))
-    g <- delete_vertices(g, v = which(V(g)$degree > input$node_degree_range[2]))
-    
-    g <- delete_vertices(g, v = which(V(g)$sim_vs_ctr < input$sim_vs_ctr_range[1]))
-    g <- delete_vertices(g, v = which(V(g)$sim_vs_ctr > input$sim_vs_ctr_range[2]))
-    
-    g <- delete_vertices(g, v = which(V(g)$sim_vs_all < input$sim_vs_all_range[1]))
-    g <- delete_vertices(g, v = which(V(g)$sim_vs_all > input$sim_vs_all_range[2]))
-    
-    clique_choices <- NULL
-    
-    for (i in 1:length(V(g))) {
-      if (!is.na(V(g)$clique_ids[i]))
-          clique_choices <- union(clique_choices, strsplit(V(g)$clique_ids[i], split = ",")[[1]])
-    } # end for
-    
-    # update the node id input box
-    updateSelectInput(session, "samples_select_by_id", choices = V(g)$name[order(V(g)$name)])
-    updateSelectInput(session, "samples_select_by_drug", choices = V(g)$drug[order(V(g)$drug)])
-    updateSelectInput(session, "samples_select_by_comm", choices = V(g)$community[order(V(g)$community)])
-    updateSelectInput(session, "samples_select_by_clique", choices = clique_choices[order(clique_choices)])
-    
-    return(g)
-    
-  }) # end filtered_samples_igraph
-  
-  
-  ### render the well clustering network
-  output$samples_network <- renderVisNetwork({
-    
-    g <- filtered_samples_igraph()
-    
-    validate(need(g, message = FALSE))
-    
-    # render the network from igraph object
-    visIgraph(g, idToLabel = FALSE, layout = input$samples_network_layout, randomSeed = 211) %>%
-      visOptions(highlightNearest = input$samples_highlight_nearest, autoResize = TRUE) %>%
-      visInteraction(multiselect = TRUE, hideEdgesOnDrag = TRUE)
-    
-  }) # end output$samples_network
-  
-  
-  ### observer to add selected nodes form the samples network into the scatter well table
-  observe({
-    
-    input$samples_network_add_selected
-    
-    visNetworkProxy("samples_network") %>% visGetSelectedNodes()
-    
-    validate(need(input$samples_network_selectedNodes, message = FALSE))
-    
-    rvs$selected_wells <- union(isolate(rvs$selected_wells), input$samples_network_selectedNodes)
-    
-  }) # end observe
-  
-  
-  ############################################################################################################
-  ### --- observers to select nodes in the samples network --- ###############################################
-  ############################################################################################################
-  
-  ### observer to select nodes by id
-  observeEvent(input$samples_select_by_id, ignoreNULL = FALSE, {
-    
-    if (is.null(input$samples_select_by_id))
-      visNetworkProxy("samples_network") %>% visUnselectAll()
-    else
-      visNetworkProxy("samples_network") %>% visSelectNodes(id = input$samples_select_by_id)
-    
-  }) # end observeEvent
-  
-  
-  ### observer to select nodes by drug
-  observeEvent(input$samples_select_by_drug, ignoreNULL = FALSE, {
-    
-    if (is.null(input$samples_select_by_drug))
-      visNetworkProxy("samples_network") %>% visUnselectAll()
-    else {
-      g <- samples_igraph()
-      visNetworkProxy("samples_network") %>%
-        visSelectNodes(id = V(g)$name[which(V(g)$drug %in% input$samples_select_by_drug)])
-    } # end else
-    
-  }) # end observeEvent
-  
-  
-  ### observer to select nodes by community
-  observeEvent(input$samples_select_by_comm, ignoreNULL = FALSE, {
-    
-    if (is.null(input$samples_select_by_comm))
-      visNetworkProxy("samples_network") %>% visUnselectAll()
-    else {
-      g <- samples_igraph()
-      visNetworkProxy("samples_network") %>%
-        visSelectNodes(id = V(g)$name[which(V(g)$community %in% input$samples_select_by_comm)]) 
-    } # end else
-    
-  }) # end observeEvent
-  
-  
-  ### observer to select nodes by clique
-  observeEvent(input$samples_select_by_clique, ignoreNULL = FALSE, {
-    
-    if (is.null(input$samples_select_by_clique))
-      visNetworkProxy("samples_network") %>% visUnselectAll()
-    else {
-      g <- samples_igraph()
-      
-      ids <- NULL
-      for (c in input$samples_select_by_clique) {
-        ids <- union(ids, strsplit(rvs$cliques[which(rvs$cliques$ID == c),]$File, split = ",")[[1]])
-      } # end for
-      
-      visNetworkProxy("samples_network") %>%
-        visSelectNodes(id = ids) 
-    } # end else
-    
-  }) # end observeEvent
-  
-  
-  ############################################################################################################
-  ### --- scatterplot --- ####################################################################################
-  ############################################################################################################
-  
-  
-  ### collect data for scatterplot and violins plot
-  observeEvent(input$plot_scatter, {
-    
-    rvs$sampled_event_data <- sampled_event_data()
-    
-  }) # end observeEvent
-  
-  
-  ### event expression data
-  event_data <- reactive({
-    
-    validate(need(scatter_wells(), message = FALSE))
-    
-    wells <- rbind(scatter_wells()[input$scatter_wells_dt_rows_selected,], rvs$ctr_wells[input$ctr_wells_dt_rows_selected,])
-    
-    channel_names <- strsplit(input$channels_step9, split = '[,]')[[1]]
-    
-    html(id = "scatter_message_center", html = "Reading FCS files ...", add = FALSE)
-    
-    files <- paste0(paths()$data, wells$file, ".fcs")
-    
-    # read fcs files into FlowSet
-    fset_obj <- read.flowSet(files, transformation = FALSE)
-    
-    html(id = "scatter_message_center", html = "Applying transformation ...", add = FALSE)
-    
-    # apply transformation
-    fset_obj <- transform(fset_obj, transformList(channel_names, logicleTransform(w = 0.5, t = 262144, m = 4.5)))
-    
-    vars <- c("file","drug","control","community")
-    
-    # extract into data frame and record the start and end row positions of each well in the exprs_data
-    html(id = "scatter_message_center", html = "Extracting values into data frame ...", add = FALSE)
-    exprs_data <- NULL
-    var_cols <- NULL
-    wells$start <- NA
-    wells$end <- NA
-    for (w in 1:nrow(wells)) {
-      
-      # start position
-      if (w == 1)
-        wells[w,]$start <- 1
-      else
-        wells[w,]$start <- nrow(exprs_data) + 1
-      
-      exprs_data <- rbind(exprs_data, fset_obj[[w]]@exprs[,channel_names, drop = FALSE])
-      
-      # end position
-      wells[w,]$end <- nrow(exprs_data)
-      
-      # columns with specifications of selected variables for each cell
-      var_cols_per_well <- NULL
-      for (v in vars) {
-        var_col <- rep(wells[w,v], wells[w,]$end - wells[w,]$start + 1)
-        var_cols_per_well <- cbind(var_cols_per_well, var_col)
-      } # end for
-      
-      var_cols <- rbind(var_cols, var_cols_per_well)
-      
-    } # end for
-    
-    # center and scale
-    html(id = "scatter_message_center", html = "Centering and scaling ...", add = FALSE)
-    exprs_data  <- scale(exprs_data, center = TRUE, scale = TRUE)
-    
-    # attach color columns for variables
-    html(id = "scatter_message_center", html = "Generating color palettes for variables ...", add = FALSE)
-    var_color_cols <- NULL
-    for (c in 1:ncol(var_cols)) {
-      color_palette <- GetColors(length(unique(var_cols[,c])), scheme = "smooth rainbow", start = 0.2, end = 0.9, bias = 1.6)
-      var_color_cols <- cbind(var_color_cols, color_palette[as.factor(var_cols[,c])])
-    } # end for
-    
-    exprs_data <- as.data.frame(cbind(exprs_data, var_cols, var_color_cols))
-    
-    colnames(exprs_data) <- c(channel_names, vars, paste0(vars, "_color"))
-    
-    for (i in 1:length(channel_names)) {
-      exprs_data[,i] <- as.double(exprs_data[,i])
-    } # end for
-    
-    #write.table(exprs_data, "event_exprs_data.txt", sep = "\t", quote = FALSE)
-    
-    html(id = "scatter_message_center", html = "", add = FALSE)
-    
-    return(exprs_data)
-    
-  }) # end reactive
-  
-  
-  ### event expression data after downsampling
-  sampled_event_data <- reactive({
-    
-    validate(need(event_data(), message = FALSE))
-    
-    html(id = "scatter_message_center", html = "Sampling ...", add = FALSE)
-    
-    d <- event_data()
-    
-    sv <- isolate(input$sample_var)
-    m <- isolate(input$max_per_group)
-    
-    if (sv == "none") {
-      
-      if (m >= nrow(d)) {
-        d_sampled <- d
-      } else {
-        d_sampled <- d[sample(nrow(d), m),]
-        d_sampled <- d_sampled[order(as.numeric(rownames(d_sampled))),]
-      } # end else
-      
-    } else {
-      
-      var_groups <- unique(d[,sv])
-      
-      d_sampled <- NULL
-      
-      for (group in var_groups) {
-        
-        d_group <- d[which(d[,sv] == group),]
-        
-        if (m >= nrow(d_group)) {
-          d_sampled <- rbind(d_sampled, d_group)
-        } else {
-          d_group_sampled <- d_group[sample(nrow(d_group), m),]
-          d_group_sampled <- d_group_sampled[order(as.numeric(rownames(d_group_sampled))),]
-          d_sampled <- rbind(d_sampled, d_group_sampled)
-        } # end else
-        
-      } # end for 
-      
-    } # end else
-    
-    html(id = "scatter_message_center", html = "", add = FALSE)
-    
-    #write.table(d_sampled, "event_exprs_data_sampled.txt", sep = "\t", quote = FALSE)
-    
-    return(d_sampled)
-    
-  }) # end sampled_event_data()
-  
-  
-  ### change scatterplot group depending on the scatterplot variable
-  observe({
-    
-    input$scatter_var
-    
-    if (input$scatter_var == "sample_var") {
-      updateSelectInput(session, "scatter_groups",
-                        choices = unique(rvs$sampled_event_data[,isolate(input$sample_var)]),
-                        selected = unique(rvs$sampled_event_data[,isolate(input$sample_var)]))
-    } else if (input$scatter_var == "density") {
-      updateSelectInput(session, "scatter_groups", choices = c("No groups to show" = "density"), selected = "density")
-    } else if (input$scatter_var == "none") {
-      updateSelectInput(session, "scatter_groups", choices = c("No groups to show" = "none"), selected = "none")
-    } # end else
-    
-  }) # end observeEvent
-  
-  
-  ### data for scatterplot
-  scatterplot_data <- reactive({
-    
-    validate(need(input$scatter_groups, message = FALSE))
-    
-    if (input$scatter_x == input$scatter_y)
-      return(NULL)
-    
-    d <- rvs$sampled_event_data
-    
-    if ("none" %in% input$scatter_groups) {
-      
-      d <- d[,c(input$scatter_x, input$scatter_y)]
-      
-      return(d)
-      
-    } else if ("density" %in% input$scatter_groups) {
-      
-      d <- d[,c(input$scatter_x, input$scatter_y)]
-      
-      # get density in 2d for the x and y points
-      d$density <- get_density(d[,1], d[,2], h = c(1,1), n = 100)
-      
-      return(d)
-      
-    } else {
-      
-      scatter_var <- isolate(input$sample_var)
-      
-      if (!all(input$scatter_groups %in% unique(d[,scatter_var])))
-        return(NULL)
-      
-      d <- d[which(d[,scatter_var] %in% input$scatter_groups),]
-      
-      d_scatter <- d[,c(input$scatter_x, input$scatter_y)]
-      
-      # get density in 2d for the x and y points
-      d_scatter$density <- get_density(d_scatter[,1], d_scatter[,2], h = c(1,1), n = 100)
-      
-      # attach variable and variable color to the scatterplot data
-      d_scatter$var_name <- d[,scatter_var]
-      d_scatter$var_color <- d[,paste0(scatter_var, "_color")]
-      
-      return(d_scatter)
-      
-    } # end else
-    
-  }) # end scatterplot_data
-  
-  
-  ### return the selected height of the static scatterplot
-  scatterplot_height <- function() {
-    return(as.integer(input$scatter_height))
-  } # end scatterplot_height
-  
-  ### function to make the static scatterplot
-  output$scatterplot <- renderPlot(height = scatterplot_height, {
-    
-    validate(need(scatterplot_data(), message = FALSE))
-    
-    d <- scatterplot_data()
-    
-    x_lab <- colnames(d)[1]
-    y_lab <- colnames(d)[2]
-    
-    colnames(d)[1] <- "x"
-    colnames(d)[2] <- "y"
-    
-    scatter_var <- isolate(input$scatter_var)
-    
-    if (scatter_var == "none") { # no point colors
-      
-      p <- ggplot(d, aes(x = x, y = y)) +
-        geom_point(size = as.double(input$scatter_dot_size), alpha = 0.7) +
-        labs(x = x_lab, y = y_lab) +
-        theme_light() +
-        theme(axis.text = element_text(size = 18), axis.title = element_text(size = 20))
-      
-      if (input$scatter_margins == "none")
-        p
-      else
-        ggMarginal(p, type = input$scatter_margins, size = 5)
-      
-    } else if (scatter_var == "density") { # color by density
-      
-      p <- ggplot(d, aes(x = x, y = y, color = density)) +
-        geom_point(size = as.double(input$scatter_dot_size), alpha = 0.8) +
-        labs(x = x_lab, y = y_lab) +
-        theme_light() +
-        theme(legend.direction = "horizontal", legend.position = c("bottom"), legend.justification = c(-0.03,0),
-              legend.text = element_text(size = 14, angle = 45, hjust = 1), legend.title = element_text(size = 14),
-              axis.text = element_text(size = 18), axis.title = element_text(size = 20)) +
-        scale_color_viridis_c()
-      
-      if (input$scatter_margins == "none")
-        p
-      else
-        ggMarginal(p, type = input$scatter_margins, size = 5)
-      
-    } else { # color by all other variables
-      
-      p <- ggplot(d, aes(x = x, y = y, color = var_name)) +
-        geom_point(size = as.double(input$scatter_dot_size), alpha = 0.8) +
-        labs(x = x_lab, y = y_lab) +
-        theme_light() +
-        theme(legend.direction = "horizontal", legend.position = c("bottom"), legend.justification = c(-0.03,0),
-              legend.title = element_blank(), legend.text = element_text(size = 14),
-              axis.text = element_text(size = 18), axis.title = element_text(size = 20)) +
-        guides(color = guide_legend(override.aes = list(size = 5))) +
-        scale_color_manual(values = setNames(unique(d$var_color), unique(d$var_name)))
-      
-      if (input$scatter_margins == "none")
-        p
-      else
-        ggMarginal(p, type = input$scatter_margins, size = 5, groupColour = TRUE, groupFill = TRUE)
-      
-    } # end else
-    
-  }) # end output$scatter_static
-  
-  
-  ### change violins group depending on the violins variable
-  observe({
-    
-    input$violins_var
-    
-    if (input$violins_var == "sample_var") {
-      updateSelectInput(session, "violins_groups",
-                        choices = unique(rvs$sampled_event_data[,isolate(input$sample_var)]),
-                        selected = unique(rvs$sampled_event_data[,isolate(input$sample_var)]))
-    } else if (input$violins_var == "none") {
-      updateSelectInput(session, "violins_groups", choices = c("No groups to show" = "none"), selected = "none")
-    } # end else
-    
-  }) # end observeEvent
-  
-  
-  ### data for the channel intensities plot
-  violins_data <- reactive({
-    
-    validate(need(input$channels_for_violins, message = FALSE))
-    validate(need(input$violins_groups, message = FALSE))
-    
-    d <- rvs$sampled_event_data
-    
-    if ("none" %in% input$violins_groups) {
-      
-      data_long <- NULL
-      for (c in input$channels_for_violins)
-        data_long <- rbind(data_long, cbind(d[,c], rep(c, nrow(d))))
-      
-      data_long <- as.data.frame(data_long)
-      
-      colnames(data_long) <- c("intensity", "channel")
-      
-      data_long$intensity <- as.double(data_long$intensity)
-      data_long$channel <- as.factor(data_long$channel)
-      
-    } else {
-      
-      d <- d[which(d[,isolate(input$sample_var)] %in% input$violins_groups),]
-      
-      data_long <- NULL
-      for (c in input$channels_for_violins)
-        data_long <- rbind(data_long, cbind(d[,c], rep(c, nrow(d)),
-                                            d[,isolate(input$sample_var)],
-                                            d[,paste0(isolate(input$sample_var), "_color")]))
-      
-      data_long <- as.data.frame(data_long)
-      
-      colnames(data_long) <- c("intensity", "channel", "var_name", "var_color")
-      
-      data_long$intensity <- as.double(data_long$intensity)
-      data_long$channel <- as.factor(data_long$channel)
-      data_long$var_name <- as.factor(data_long$var_name)
-      data_long$var_color <- as.character(data_long$var_color)
-      
-    } # end else
-    
-    return(data_long)
-    
-  }) # end violins_data()
-  
-  
-  ### render the channel intensities plot
-  output$violins_plot <- renderPlot({
-    
-    validate(need(violins_data(), message = FALSE))
-    
-    d <- violins_data()
-    
-    violins_var <- isolate(input$violins_var)
-    
-    if (violins_var == "none") {
-      
-      ggplot(d, aes(x = channel, y = intensity)) +
-        geom_violin(trim = FALSE, fill = "#f1f1f1") +
-        geom_boxplot(width = 0.1, fill = "#f1f1f1") +
-        labs(x = NULL) +
-        theme_light() +
-        theme(axis.text = element_text(size = 18), axis.title = element_text(size = 20),
-              axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "none") +
-        scale_x_discrete(limits = as.factor(input$channels_for_violins))
-      
-    } else {
-      
-      ggplot(d, aes(x = channel, y = intensity, fill = var_name)) +
-        geom_violin(trim = FALSE) +
-        geom_boxplot(width = 0.1, position = position_dodge(width = 0.9)) +
-        labs(x = NULL) +
-        theme_light() +
-        theme(axis.text = element_text(size = 18), axis.title = element_text(size = 20),
-              axis.text.x = element_text(angle = 45, hjust = 1),
-              legend.direction = "horizontal", legend.position = c("bottom"), legend.justification = c(-0.03,0),
-              legend.text = element_text(size = 14), legend.title = element_blank()) +
-        scale_fill_manual(values = setNames(unique(d$var_color), unique(d$var_name))) +
-        scale_x_discrete(limits = as.factor(input$channels_for_violins))
-      
-    } # end else
-    
-  }) # end output$violins_plot
   
   
 } # end server
