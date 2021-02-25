@@ -46,15 +46,23 @@ step1_import = function(min_events, inURL)
     if(nrow(dt_) < min_events)
     {
       # moving undesired files to REMOVED sub-directory
+      # will not work when there are spaces in either folder or file names
+      #system2(command = 'mkdir',args = paste0(inURL,'/REMOVED'))
+      #if(.Platform$OS.type == 'unix')
+      #{
+      #  system2(command = 'mv',args = c(paste0(inURL,'/',fl_),paste0(inURL,'/REMOVED/')))
+      #}else
+      #{
+      #  system2(command = 'move',args = c(paste0(inURL,'/',fl_),paste0(inURL,'/REMOVED/')))
+      #}
       
-      system2(command = 'mkdir',args = paste0(inURL,'/REMOVED'))
-      if(.Platform$OS.type == 'unix')
-      {
-        system2(command = 'mv',args = c(paste0(inURL,'/',fl_),paste0(inURL,'/REMOVED/')))
-      }else
-      {
-        system2(command = 'move',args = c(paste0(inURL,'/',fl_),paste0(inURL,'/REMOVED/')))
-      }
+      # use native R commands instead
+      if (!dir.exists(paste0(inURL,'/REMOVED')))
+        dir.create(paste0(inURL,'/REMOVED'))
+      
+      file.copy(from = paste0(inURL,'/',fl_), to = paste0(inURL,'/REMOVED/',fl_))
+      
+      file.remove(paste0(inURL,'/',fl_))
       
       # updating annotation file so that it only contains info for valid files
 

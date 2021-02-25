@@ -27,6 +27,13 @@ step2_spillover_compensation = function(inURL)
     compMat = keywords_[grepl(x = names(keywords_), pattern = 'SPILL|COMP', ignore.case = F)]
     if(0 < length(compMat))
     {
+      
+      # sometimes, the colnames in compensation matrix are indices of the colnames in the exprs matrix,
+      # instead of the actual channel names, if the colnames can be converted to numeric without NAs, substitute to
+      # channel names
+      if (length(which(is.na(as.numeric(compMat[[1]])))) == 0)
+        colnames(compMat[[1]]) <- colnames(dt_@exprs)[as.numeric(colnames(compMat[[1]]))]
+      
       # compensation for all channels listed in compensation matrix
 
       dt_ = compensate(x = dt_, spillover = compMat[[1]])
